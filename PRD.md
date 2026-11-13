@@ -443,6 +443,21 @@ create table notifications (
   created_at timestamptz not null default now()
 );
 
+-- 11. SUPABASE STORAGE BUCKET (FOTO & MEDIA)
+-- Bucket publik untuk menyimpan foto cabang, kapster, layanan, gaya rambut, dan promo
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'images',
+  'images',
+  true,
+  5242880, -- Maks 5 MB
+  array['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+)
+on conflict (id) do update set
+  public = true,
+  file_size_limit = 5242880,
+  allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+
 -- ============================================================================
 -- STORED FUNCTIONS / RPC (Dipanggil langsung dari Flutter)
 -- ============================================================================
@@ -651,6 +666,15 @@ create policy "Users can view their own point ledger" on point_ledger for select
 create policy "Users can view their vouchers" on reward_redemptions for select using (auth.uid() = customer_id);
 create policy "Users can view their notifications" on notifications for select using (auth.uid() = customer_id);
 create policy "Users can update notifications" on notifications for update using (auth.uid() = customer_id);
+
+-- Storage (Bucket 'images') Policies
+create policy "Public images are viewable by everyone" on storage.objects for select using (bucket_id = 'images');
+create policy "Authenticated users/admins can upload images" on storage.objects for insert with check (
+  bucket_id = 'images' and auth.role() = 'authenticated'
+);
+create policy "Admins can update or delete images" on storage.objects for delete using (
+  bucket_id = 'images' and exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+);
 
 -- ============================================================================
 -- SEED DATA AWAL
