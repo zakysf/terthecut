@@ -21,6 +21,10 @@ class MyBookingsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.loadMyBookings();
+    });
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -34,16 +38,23 @@ class MyBookingsView extends StatelessWidget {
               letterSpacing: 2.0,
             ),
           ),
-          bottom: TabBar(
-            labelColor: AppColors.ink,
-            unselectedLabelColor: AppColors.inkSoft,
-            indicatorColor: AppColors.accent,
-            indicatorWeight: 3,
-            labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
-            tabs: const [
-              Tab(text: 'Akan Datang'),
-              Tab(text: 'Riwayat'),
-            ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(48),
+            child: Obx(() {
+              final upcomingCount = _controller.upcomingBookings.length;
+              final historyCount = _controller.historyBookings.length;
+              return TabBar(
+                labelColor: AppColors.ink,
+                unselectedLabelColor: AppColors.inkSoft,
+                indicatorColor: AppColors.accent,
+                indicatorWeight: 3,
+                labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+                tabs: [
+                  Tab(text: 'Akan Datang ($upcomingCount)'),
+                  Tab(text: 'Riwayat Selesai ($historyCount)'),
+                ],
+              );
+            }),
           ),
         ),
         body: SafeArea(
@@ -113,6 +124,28 @@ class MyBookingsView extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkSoft),
               ),
+              if (isUpcoming && _controller.historyBookings.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle_outline, color: AppColors.success, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Jadwal Anda telah selesai di tab "Riwayat Selesai".',
+                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.success),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               if (isUpcoming) ...[
                 const SizedBox(height: 20),
                 ElevatedButton(

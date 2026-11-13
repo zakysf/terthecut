@@ -181,5 +181,56 @@ class AuthService {
     _currentSessionProfile = null;
   }
 
+  /// Memperbarui profil terbaru dari database Supabase atau mock
+  Future<Profile?> getProfile(String idOrPhone) async {
+    final client = SupabaseConfig.client;
+    if (client != null && SupabaseConfig.isConfigured) {
+      try {
+        final query = client.from('profiles').select();
+        final data = idOrPhone.startsWith('08') || idOrPhone.startsWith('62')
+            ? await query.eq('phone', normalizePhone(idOrPhone)).maybeSingle()
+            : await query.eq('id', idOrPhone).maybeSingle();
+
+        if (data != null) {
+          final profile = Profile.fromJson(data);
+          if (_currentSessionProfile?.id == profile.id || _currentSessionProfile?.phone == profile.phone) {
+            _currentSessionProfile = profile;
+          }
+          return profile;
+        }
+      } catch (_) {}
+    }
+
+    return _mockProfiles.cast<Profile?>().firstWhere(
+          (p) => p?.id == idOrPhone || p?.phone == normalizePhone(idOrPhone),
+          orElse: () => _currentSessionProfile,
+        );
+  }
+
+  /// Menambahkan poin di cache memori mock agar sinkron luring
+  static void creditMockPoints(String customerIdOrPhone, int points) {
+    final normPhone = normalizePhone(customerIdOrPhone);
+    final index = _mockProfiles.indexWhere(
+      (p) => p.id == customerIdOrPhone || p.phone == normPhone,
+    );
+    if (index != -1) {
+      final curr = _mockProfiles[index];
+      _mockProfiles[index] = curr.copyWith(
+        pointsBalance: curr.pointsBalance + points,
+        lifetimePoints: curr.lifetimePoints + points,
+        lastVisitAt: DateTime.now(),
+      );
+    }
+
+    if (_currentSessionProfile != null &&
+        (_currentSessionProfile!.id == customerIdOrPhone || _currentSessionProfile!.phone == normPhone)) {
+      _currentSessionProfile = _currentSessionProfile!.copyWith(
+        pointsBalance: _currentSessionProfile!.pointsBalance + points,
+        lifetimePoints: _currentSessionProfile!.lifetimePoints + points,
+        lastVisitAt: DateTime.now(),
+      );
+    }
+  }
+
   Profile? get currentProfile => _currentSessionProfile;
 }

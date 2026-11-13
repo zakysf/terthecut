@@ -109,17 +109,21 @@ class Booking {
       return DateTime.now();
     }
 
+    final profilesMap = json['profiles'] is Map ? json['profiles'] as Map<String, dynamic> : null;
+    final branchesMap = json['branches'] is Map ? json['branches'] as Map<String, dynamic> : null;
+    final barbersMap = json['barbers'] is Map ? json['barbers'] as Map<String, dynamic> : null;
+
     return Booking(
       id: json['id']?.toString() ?? '',
       code: json['code']?.toString() ?? '',
       customerId: json['customer_id']?.toString() ?? '',
-      customerName: json['customer_name']?.toString(),
-      customerPhone: json['customer_phone']?.toString(),
+      customerName: json['customer_name']?.toString() ?? profilesMap?['name']?.toString() ?? 'Pelanggan Ter The Cut',
+      customerPhone: json['customer_phone']?.toString() ?? profilesMap?['phone']?.toString(),
       branchId: json['branch_id']?.toString() ?? '',
-      branchName: json['branch_name']?.toString() ?? 'Cabang Ter The Cut',
-      branchAddress: json['branch_address']?.toString() ?? '',
+      branchName: json['branch_name']?.toString() ?? branchesMap?['name']?.toString() ?? 'Cabang Ter The Cut',
+      branchAddress: json['branch_address']?.toString() ?? branchesMap?['address']?.toString() ?? '',
       barberId: json['barber_id']?.toString() ?? '',
-      barberName: json['barber_name']?.toString() ?? 'Kapster Ter The Cut',
+      barberName: json['barber_name']?.toString() ?? barbersMap?['name']?.toString() ?? 'Kapster Ter The Cut',
       barberPref: json['barber_pref']?.toString() ?? 'chosen',
       serviceId: json['service_id']?.toString() ?? '',
       serviceName: json['service_name']?.toString() ?? 'Layanan Ter The Cut',

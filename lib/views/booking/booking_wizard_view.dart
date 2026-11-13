@@ -1374,59 +1374,248 @@ class BookingWizardView extends StatelessWidget {
                       const SizedBox(height: 12),
                       _buildTicketRow('JAM RESERVASI', timeRangeStr),
                       const Divider(height: 24, color: AppColors.hairline),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'TOTAL BIAYA',
-                                style: Theme.of(Get.context!)
-                                    .textTheme
-                                    .labelSmall,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _currencyFormat.format(service?.price ?? 0),
-                                style: GoogleFonts.inter(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+
+                      // Bagian Voucher Diskon
+                      Obx(() {
+                        final applied = _bookingController.appliedVoucher.value;
+                        final usable = _bookingController.usableVouchers;
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.confirmation_num_outlined,
+                                      size: 14,
+                                      color: AppColors.accent,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'VOUCHER DISKON',
+                                      style: Theme.of(Get.context!)
+                                          .textTheme
+                                          .labelSmall,
+                                    ),
+                                  ],
+                                ),
+                                if (applied != null)
+                                  GestureDetector(
+                                    onTap: () => _bookingController.removeVoucher(),
+                                    child: Text(
+                                      'Hapus',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        color: AppColors.danger,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            if (applied != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.gold.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: AppColors.gold.withValues(alpha: 0.5),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            applied.rewardName,
+                                            style: GoogleFonts.inter(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: AppColors.ink,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            applied.voucherCode,
+                                            style: const TextStyle(
+                                              fontFamily: 'Playfair Display',
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1.5,
+                                              color: AppColors.inkSoft,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(
+                                      '-${_currencyFormat.format(_bookingController.discountAmount)}',
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: AppColors.success,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else if (usable.isNotEmpty)
+                              OutlinedButton.icon(
+                                onPressed: () => _showVoucherPicker(Get.context!),
+                                icon: const Icon(
+                                  Icons.local_offer_outlined,
+                                  size: 14,
                                   color: AppColors.ink,
                                 ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.gold.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.stars,
-                                  color: AppColors.gold,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '+${service?.points ?? 10} POIN',
+                                label: Text(
+                                  'Pilih Voucher (${usable.length} Tersedia)',
                                   style: GoogleFonts.inter(
-                                    fontSize: 12,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.gold,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  side: const BorderSide(color: AppColors.hairline),
+                                ),
+                              )
+                            else
+                              Text(
+                                'Tidak ada voucher aktif untuk akun ini.',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                  color: AppColors.inkSoft,
+                                ),
+                              ),
+                          ],
+                        );
+                      }),
+
+                      const Divider(height: 24, color: AppColors.hairline),
+                      Obx(() {
+                        final discount = _bookingController.discountAmount;
+                        final finalTotal = _bookingController.finalPrice;
+                        final origPrice = service?.price ?? 0;
+
+                        return Column(
+                          children: [
+                            if (discount > 0) ...[
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Harga Normal',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: AppColors.inkSoft,
+                                    ),
+                                  ),
+                                  Text(
+                                    _currencyFormat.format(origPrice),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: AppColors.inkSoft,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Diskon Voucher',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.success,
+                                    ),
+                                  ),
+                                  Text(
+                                    '-${_currencyFormat.format(discount)}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.success,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'TOTAL BIAYA',
+                                      style: Theme.of(Get.context!)
+                                          .textTheme
+                                          .labelSmall,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _currencyFormat.format(finalTotal),
+                                      style: GoogleFonts.inter(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.ink,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        AppColors.gold.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.stars,
+                                        color: AppColors.gold,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '+${service?.points ?? 10} POIN',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.gold,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -1478,6 +1667,130 @@ class BookingWizardView extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  void _showVoucherPicker(BuildContext context) {
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: AppColors.paper,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'PILIH VOUCHER REWARD',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Get.back(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Flexible(
+              child: Obx(() {
+                return ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _bookingController.usableVouchers.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final v = _bookingController.usableVouchers[index];
+                    final isSelected =
+                        _bookingController.appliedVoucher.value?.voucherCode ==
+                            v.voucherCode;
+                    return InkWell(
+                      onTap: () {
+                        _bookingController.applyVoucher(v);
+                        Get.back();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.gold
+                                : AppColors.hairline,
+                            width: isSelected ? 2 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.card_giftcard,
+                              color: isSelected
+                                  ? AppColors.gold
+                                  : AppColors.inkSoft,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    v.rewardName,
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: AppColors.ink,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Kode: ${v.voucherCode} • Berlaku s.d. ${v.formattedExpiry}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: AppColors.inkSoft,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (isSelected)
+                              const Icon(
+                                Icons.check_circle,
+                                color: AppColors.gold,
+                                size: 20,
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              }),
+            ),
+            const SizedBox(height: 14),
+            Obx(() {
+              if (_bookingController.appliedVoucher.value != null) {
+                return OutlinedButton(
+                  onPressed: () {
+                    _bookingController.removeVoucher();
+                    Get.back();
+                  },
+                  child: const Text('BATALKAN PENGGUNAAN VOUCHER'),
+                );
+              }
+              return const SizedBox.shrink();
+            }),
+          ],
+        ),
+      ),
+      isScrollControlled: true,
     );
   }
 }

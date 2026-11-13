@@ -25,6 +25,22 @@ class AuthController extends GetxController {
     _currentProfile.value = _authService.currentProfile;
   }
 
+  void updateCurrentProfile(Profile profile) {
+    _currentProfile.value = profile;
+  }
+
+  /// Memuat ulang data profil pengguna terbaru (saldo poin, riwayat kunjungan)
+  Future<void> refreshProfile() async {
+    final current = _currentProfile.value;
+    if (current == null) return;
+    try {
+      final updated = await _authService.getProfile(current.id);
+      if (updated != null) {
+        _currentProfile.value = updated;
+      }
+    } catch (_) {}
+  }
+
   Future<bool> login({
     required String identifier,
     required String password,

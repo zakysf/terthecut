@@ -15,6 +15,9 @@ import 'views/admin/admin_dashboard_view.dart';
 import 'views/booking/booking_wizard_view.dart';
 import 'views/booking/my_bookings_view.dart';
 import 'views/booking/booking_detail_view.dart';
+import 'views/loyalty/reward_catalog_view.dart';
+import 'views/loyalty/my_vouchers_view.dart';
+import 'views/loyalty/point_ledger_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +57,9 @@ class TerTheCutApp extends StatelessWidget {
         GetPage(name: '/booking-wizard', page: () => BookingWizardView()),
         GetPage(name: '/my-bookings', page: () => MyBookingsView()),
         GetPage(name: '/booking-detail', page: () => const BookingDetailView()),
+        GetPage(name: '/rewards', page: () => RewardCatalogView()),
+        GetPage(name: '/my-vouchers', page: () => MyVouchersView()),
+        GetPage(name: '/point-ledger', page: () => PointLedgerView()),
       ],
     );
   }

@@ -50,5 +50,25 @@ class Profile {
     if (lifetimePoints >= 100) return 'Silver';
     return 'Bronze';
   }
+
+  Profile copyWith({
+    String? id,
+    String? role,
+    String? phone,
+    String? name,
+    int? pointsBalance,
+    int? lifetimePoints,
+    DateTime? lastVisitAt,
+  }) {
+    return Profile(
+      id: id ?? this.id,
+      role: role ?? this.role,
+      phone: phone ?? this.phone,
+      name: name ?? this.name,
+      pointsBalance: pointsBalance ?? this.pointsBalance,
+      lifetimePoints: lifetimePoints ?? this.lifetimePoints,
+      lastVisitAt: lastVisitAt ?? this.lastVisitAt,
+    );
+  }
 }
 

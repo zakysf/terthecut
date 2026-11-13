@@ -6,13 +6,16 @@ import '../models/branch.dart';
 import '../models/barber.dart';
 import '../models/service_item.dart';
 import '../models/hairstyle.dart';
+import '../models/reward_redemption.dart';
 import '../services/booking_service.dart';
 import '../services/branch_service.dart';
+import '../services/loyalty_service.dart';
 import 'auth_controller.dart';
 
 class BookingController extends GetxController {
   final BookingService _bookingService = BookingService();
   final BranchService _branchService = BranchService();
+  final LoyaltyService _loyaltyService = LoyaltyService();
 
   // Step Wizard: 0 = Cabang, 1 = Kapster, 2 = Layanan, 3 = Gaya Rambut, 4 = Waktu, 5 = Konfirmasi
   final RxInt currentStep = 0.obs;
@@ -25,6 +28,34 @@ class BookingController extends GetxController {
   final Rxn<Hairstyle> selectedHairstyle = Rxn<Hairstyle>();
   final Rx<DateTime> selectedDate = Rx<DateTime>(DateTime.now());
   final Rxn<TimeSlot> selectedSlot = Rxn<TimeSlot>();
+
+  // State Voucher Diskon
+  final Rxn<RewardRedemption> appliedVoucher = Rxn<RewardRedemption>();
+  final RxList<RewardRedemption> usableVouchers = <RewardRedemption>[].obs;
+  final RxBool isLoadingVouchers = false.obs;
+
+  /// Nilai diskon dari voucher yang dipilih
+  int get discountAmount {
+    final voucher = appliedVoucher.value;
+    final service = selectedService.value;
+    if (voucher == null || service == null) return 0;
+
+    final name = voucher.rewardName.toLowerCase();
+    if (name.contains('10.000') || name.contains('10k')) {
+      return service.price >= 10000 ? 10000 : service.price;
+    } else if (name.contains('gratis') || name.contains('free')) {
+      return service.price;
+    }
+    return 10000 > service.price ? service.price : 10000;
+  }
+
+  /// Total harga layanan setelah potongan voucher diskon
+  int get finalPrice {
+    final orig = selectedService.value?.price ?? 0;
+    final disc = discountAmount;
+    final res = orig - disc;
+    return res > 0 ? res : 0;
+  }
 
   // State Kapster & Slot
   final RxList<Barber> branchBarbers = <Barber>[].obs;
@@ -79,6 +110,8 @@ class BookingController extends GetxController {
     selectedHairstyle.value = initialHairstyle;
     selectedDate.value = DateTime.now();
     selectedSlot.value = null;
+    appliedVoucher.value = null;
+    usableVouchers.clear();
     errorMessage.value = '';
     branchBarbers.clear();
     availableSlots.clear();
@@ -194,7 +227,37 @@ class BookingController extends GetxController {
       );
       return;
     }
+    loadUsableVouchers();
     currentStep.value = 5;
+  }
+
+  /// Memuat voucher aktif yang dapat digunakan pelanggan
+  Future<void> loadUsableVouchers() async {
+    final authController = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : Get.put(AuthController(), permanent: true);
+    final customerId = authController.currentProfile?.id;
+    if (customerId == null) return;
+
+    isLoadingVouchers.value = true;
+    try {
+      final list = await _loyaltyService.fetchCustomerVouchers(customerId);
+      usableVouchers.assignAll(list.where((v) => v.isUsable).toList());
+    } catch (_) {
+      usableVouchers.clear();
+    } finally {
+      isLoadingVouchers.value = false;
+    }
+  }
+
+  /// Memilih / menerapkan voucher diskon
+  void applyVoucher(RewardRedemption? voucher) {
+    appliedVoucher.value = voucher;
+  }
+
+  /// Membatalkan voucher diskon terpilih
+  void removeVoucher() {
+    appliedVoucher.value = null;
   }
 
   /// Navigasi kembali satu langkah pada wizard
@@ -242,13 +305,20 @@ class BookingController extends GetxController {
         selectedBarberId: isAutoAssign.value ? null : selectedBarber.value?.id,
         serviceId: service.id,
         serviceName: service.name,
-        servicePrice: service.price,
+        servicePrice: finalPrice,
         servicePoints: service.points,
         durationHours: service.durationHours,
         hairstyleId: selectedHairstyle.value?.id,
         hairstyleName: selectedHairstyle.value?.name,
         startsAt: startsAt,
       );
+
+      // Tandai voucher telah digunakan jika ada voucher diskon yang diterapkan
+      final usedVoucher = appliedVoucher.value;
+      if (usedVoucher != null) {
+        await _loyaltyService.useVoucher(usedVoucher.voucherCode);
+        appliedVoucher.value = null;
+      }
 
       lastCreatedBooking.value = booking;
       await loadMyBookings();
@@ -352,9 +422,14 @@ class BookingController extends GetxController {
         : Get.put(AuthController(), permanent: true);
 
     final customerId = authController.currentProfile?.id ?? 'demo-user-1';
+    final customerPhone = authController.currentProfile?.phone;
+
     isLoadingBookings.value = true;
     try {
-      final list = await _bookingService.fetchCustomerBookings(customerId);
+      final list = await _bookingService.fetchCustomerBookings(
+        customerId,
+        customerPhone: customerPhone,
+      );
       myBookings.assignAll(list);
     } finally {
       isLoadingBookings.value = false;

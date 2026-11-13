@@ -86,7 +86,7 @@ Rencana pengerjaan dibagi menjadi **4 Sprint** dengan durasi masing-masing **2 m
   - `US-12`: Penukaran Poin dengan Voucher Reward Atomik via RPC (5 SP)
   - `US-13`: Dompet Voucher Reward Pelanggan (3 SP)
   - `US-18`: Jadwal Harian Admin per Cabang (5 SP)
-  - `US-19`: Admin Kasir: Tandai Datang & Selesai Otomatis via RPC `complete_booking` (5 SP)
+  - `US-19`: Admin Kasir: Selesai Otomatis via RPC `complete_booking` (5 SP)
 - **Sub-task / Kegiatan Teknis**:
   1. Merancang widget Member Card mewah di Beranda (Playfair Display, aksen emas vintage).
   2. Menghubungkan perhitungan tier dinamis: Bronze (0–99), Silver (100–299), Gold (≥300 poin).

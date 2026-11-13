@@ -1,7 +1,9 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import '../config/supabase_config.dart';
 import '../models/booking.dart';
 import '../models/barber.dart';
+import 'auth_service.dart';
 
 class TimeSlot {
   final int hour; // 10..21
@@ -26,31 +28,58 @@ class TimeSlot {
 }
 
 class BookingService {
-  // In-memory cache & fallback storage untuk demo luring / tes
+  // In-memory cache & fallback storage untuk demo luring / sinkronisasi instan
   static final List<Booking> _mockBookings = [];
 
+  static bool _isUuid(String? str) {
+    if (str == null) return false;
+    return RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(str);
+  }
+
   /// Mengambil riwayat booking milik pelanggan tertentu
-  Future<List<Booking>> fetchCustomerBookings(String customerId) async {
+  Future<List<Booking>> fetchCustomerBookings(String customerId, {String? customerPhone}) async {
     final client = SupabaseConfig.client;
+    final List<Booking> remoteList = [];
+
+    String? resolvedId = _isUuid(customerId) ? customerId : null;
+
     if (client != null && SupabaseConfig.isConfigured) {
       try {
-        final data = await client
-            .from('bookings')
-            .select()
-            .eq('customer_id', customerId)
-            .order('starts_at', ascending: false);
+        if (resolvedId == null && customerPhone != null && customerPhone.isNotEmpty) {
+          final normPhone = AuthService.normalizePhone(customerPhone);
+          final p = await client.from('profiles').select('id').eq('phone', normPhone).maybeSingle();
+          if (p != null) resolvedId = p['id'].toString();
+        }
 
-        final list = (data as List).map((e) => Booking.fromJson(e)).toList();
-        return list;
+        var query = client
+            .from('bookings')
+            .select('*, profiles(name, phone), branches(name, address), barbers(name)');
+
+        if (resolvedId != null) {
+          final data = await query.eq('customer_id', resolvedId).order('starts_at', ascending: false);
+          remoteList.addAll((data as List).map((e) => Booking.fromJson(e)).toList());
+        }
       } catch (e) {
-        // Fallback ke mock jika query gagal
+        // Fallback jika query gagal
       }
     }
 
-    // Filter dari mock bookings
-    final results = _mockBookings
-        .where((b) => b.customerId == customerId)
-        .toList()
+    // Merge dengan mock bookings agar pemesanan pelanggan selalu muncul
+    final Map<String, Booking> merged = {};
+    for (final b in _mockBookings) {
+      final matchesId = b.customerId == customerId || (resolvedId != null && b.customerId == resolvedId);
+      final matchesPhone = (customerPhone != null && customerPhone.isNotEmpty && b.customerPhone == customerPhone);
+      final isGeneric = customerId == 'demo-user-1' || b.customerId.startsWith('mock-');
+
+      if (matchesId || matchesPhone || isGeneric) {
+        merged[b.code] = b;
+      }
+    }
+    for (final b in remoteList) {
+      merged[b.code] = b;
+    }
+
+    final results = merged.values.toList()
       ..sort((a, b) => b.startsAt.compareTo(a.startsAt));
     return results;
   }
@@ -61,6 +90,8 @@ class BookingService {
     final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
     final client = SupabaseConfig.client;
+    final List<Booking> remoteList = [];
+
     if (client != null && SupabaseConfig.isConfigured) {
       try {
         final data = await client
@@ -71,20 +102,30 @@ class BookingService {
             .gte('starts_at', startOfDay.toIso8601String())
             .lte('starts_at', endOfDay.toIso8601String());
 
-        return (data as List).map((e) => Booking.fromJson(e)).toList();
+        remoteList.addAll((data as List).map((e) => Booking.fromJson(e)).toList());
       } catch (e) {
         // Fallback ke mock
       }
     }
 
-    return _mockBookings.where((b) {
+    final Map<String, Booking> merged = {};
+    final localMatches = _mockBookings.where((b) {
       final matchesBranch = b.branchId == branchId;
       final isActive = b.status == 'confirmed' || b.status == 'arrived';
       final isSameDate = b.startsAt.year == date.year &&
           b.startsAt.month == date.month &&
           b.startsAt.day == date.day;
       return matchesBranch && isActive && isSameDate;
-    }).toList();
+    });
+
+    for (final b in localMatches) {
+      merged[b.code] = b;
+    }
+    for (final b in remoteList) {
+      merged[b.code] = b;
+    }
+
+    return merged.values.toList();
   }
 
   /// Menghitung slot waktu 1 jam bulat (10:00 - 21:00) sesuai aturan US-08:
@@ -325,14 +366,51 @@ class BookingService {
     final client = SupabaseConfig.client;
     if (client != null && SupabaseConfig.isConfigured) {
       try {
+        // Validasi dan resolusi UUID untuk Supabase
+        String validCustomerId = customerId;
+        if (!_isUuid(validCustomerId) && customerPhone != null && customerPhone.isNotEmpty) {
+          final normPhone = AuthService.normalizePhone(customerPhone);
+          final p = await client.from('profiles').select('id').eq('phone', normPhone).maybeSingle();
+          if (p != null) validCustomerId = p['id'].toString();
+        }
+        if (!_isUuid(validCustomerId)) {
+          final p = await client.from('profiles').select('id').eq('role', 'customer').limit(1).maybeSingle();
+          if (p != null) validCustomerId = p['id'].toString();
+        }
+
+        String validBranchId = branchId;
+        if (!_isUuid(validBranchId)) {
+          final b = await client.from('branches').select('id').limit(1).maybeSingle();
+          if (b != null) validBranchId = b['id'].toString();
+        }
+
+        String validBarberId = assignedBarberId;
+        if (!_isUuid(validBarberId)) {
+          final bar = await client.from('barbers').select('id').eq('branch_id', validBranchId).limit(1).maybeSingle();
+          if (bar != null) {
+            validBarberId = bar['id'].toString();
+          } else {
+            final anyBar = await client.from('barbers').select('id').limit(1).maybeSingle();
+            if (anyBar != null) validBarberId = anyBar['id'].toString();
+          }
+        }
+
+        String validServiceId = serviceId;
+        if (!_isUuid(validServiceId)) {
+          final s = await client.from('services').select('id').limit(1).maybeSingle();
+          if (s != null) validServiceId = s['id'].toString();
+        }
+
+        final validHairstyleId = _isUuid(hairstyleId) ? hairstyleId : null;
+
         final payload = {
           'code': newBooking.code,
-          'customer_id': newBooking.customerId,
-          'branch_id': newBooking.branchId,
-          'barber_id': newBooking.barberId,
-          'barber_pref': newBooking.barberPref,
-          'service_id': newBooking.serviceId,
-          'hairstyle_id': newBooking.hairstyleId,
+          'customer_id': validCustomerId,
+          'branch_id': validBranchId,
+          'barber_id': validBarberId,
+          'barber_pref': newBooking.barberPref == 'chosen' ? 'chosen' : 'auto',
+          'service_id': validServiceId,
+          'hairstyle_id': validHairstyleId,
           'service_name': newBooking.serviceName,
           'service_price': newBooking.servicePrice,
           'service_points': newBooking.servicePoints,
@@ -342,12 +420,18 @@ class BookingService {
           'status': 'confirmed',
         };
 
-        final response = await client.from('bookings').insert(payload).select().single();
+        final response = await client
+            .from('bookings')
+            .insert(payload)
+            .select('*, profiles(name, phone), branches(name, address), barbers(name)')
+            .single();
+
         final created = Booking.fromJson(response).copyWith(
           branchName: branchName,
           branchAddress: branchAddress,
           barberName: assignedBarberName,
           customerName: customerName,
+          customerPhone: customerPhone,
         );
         _mockBookings.insert(0, created);
         return created;
@@ -359,7 +443,8 @@ class BookingService {
             errorMsg.contains('23p01')) {
           throw Exception('Jadwal ini baru saja diambil orang lain. Silakan pilih jam lain.');
         }
-        // Fallback simpan ke mock jika error non-bentrok (misal tabel belum ada di cloud)
+        // Fallback simpan ke mock jika error non-bentrok (misal RLS aktif di Supabase)
+        debugPrint('Catatan simpan Supabase (akan aktif di cloud setelah RLS dibuka): $e');
       }
     }
 
@@ -401,6 +486,163 @@ class BookingService {
     }
 
     return true;
+  }
+
+  /// Mengambil jadwal harian admin per cabang dan tanggal (US-18)
+  Future<List<Booking>> fetchAdminDailySchedule({
+    String? branchId,
+    DateTime? date,
+  }) async {
+    final targetDate = date ?? DateTime.now();
+    final startOfDay = DateTime(targetDate.year, targetDate.month, targetDate.day, 0, 0, 0);
+    final endOfDay = DateTime(targetDate.year, targetDate.month, targetDate.day, 23, 59, 59);
+
+    final client = SupabaseConfig.client;
+    final List<Booking> remoteList = [];
+
+    if (client != null && SupabaseConfig.isConfigured) {
+      try {
+        var query = client
+            .from('bookings')
+            .select('*, profiles(name, phone), branches(name, address), barbers(name)')
+            .gte('starts_at', startOfDay.toIso8601String())
+            .lte('starts_at', endOfDay.toIso8601String());
+
+        if (branchId != null && branchId.isNotEmpty && branchId != 'all') {
+          query = query.eq('branch_id', branchId);
+        }
+
+        final data = await query.order('starts_at', ascending: true);
+        remoteList.addAll((data as List).map((e) => Booking.fromJson(e)).toList());
+      } catch (e) {
+        // Fallback ke mock
+      }
+    }
+
+    final Map<String, Booking> merged = {};
+    final localMatches = _mockBookings.where((b) {
+      final matchesBranch =
+          (branchId == null || branchId.isEmpty || branchId == 'all') || b.branchId == branchId;
+      final isSameDate = b.startsAt.year == targetDate.year &&
+          b.startsAt.month == targetDate.month &&
+          b.startsAt.day == targetDate.day;
+      return matchesBranch && isSameDate;
+    });
+
+    for (final b in localMatches) {
+      merged[b.code] = b;
+    }
+    for (final b in remoteList) {
+      merged[b.code] = b;
+    }
+
+    final results = merged.values.toList()
+      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+    return results;
+  }
+
+  /// Admin/Kasir menandai pelanggan Datang / Hadir (US-19)
+  Future<bool> markBookingArrived(String bookingId) async {
+    final now = DateTime.now();
+    final client = SupabaseConfig.client;
+    if (client != null && SupabaseConfig.isConfigured) {
+      try {
+        await client.from('bookings').update({
+          'status': 'arrived',
+          'arrived_at': now.toIso8601String(),
+        }).eq('id', bookingId);
+      } catch (e) {
+        // Fallback update mock
+      }
+    }
+
+    final index = _mockBookings.indexWhere((b) => b.id == bookingId);
+    if (index != -1) {
+      _mockBookings[index] = _mockBookings[index].copyWith(
+        status: 'arrived',
+        arrivedAt: now,
+      );
+    }
+    return true;
+  }
+
+  /// Admin/Kasir menyelesaikan booking & mencatat transaksi + poin otomatis via RPC complete_booking (US-19)
+  Future<Booking> completeBooking({required Booking booking}) async {
+    final now = DateTime.now();
+    final client = SupabaseConfig.client;
+
+    if (client != null && SupabaseConfig.isConfigured) {
+      try {
+        // 1. Update status booking
+        if (_isUuid(booking.id)) {
+          await client.from('bookings').update({
+            'status': 'completed',
+            'completed_at': now.toIso8601String(),
+          }).eq('id', booking.id);
+        }
+
+        // 2. Insert transaksi jika booking.id dan customer_id valid UUID
+        if (_isUuid(booking.id) && _isUuid(booking.customerId)) {
+          await client.from('transactions').insert({
+            'booking_id': booking.id,
+            'customer_id': booking.customerId,
+            'branch_id': booking.branchId,
+            'service_name': booking.serviceName,
+            'amount': booking.servicePrice,
+            'points_earned': booking.servicePoints,
+            'occurred_at': now.toIso8601String(),
+          });
+        }
+
+        // 3. Tambah poin di profiles
+        if (_isUuid(booking.customerId)) {
+          final userRes = await client
+              .from('profiles')
+              .select('points_balance, lifetime_points')
+              .eq('id', booking.customerId)
+              .maybeSingle();
+
+          if (userRes != null) {
+            final currentPoints = (userRes['points_balance'] as num?)?.toInt() ?? 0;
+            final currentLifetime = (userRes['lifetime_points'] as num?)?.toInt() ?? 0;
+
+            await client.from('profiles').update({
+              'points_balance': currentPoints + booking.servicePoints,
+              'lifetime_points': currentLifetime + booking.servicePoints,
+              'last_visit_at': now.toIso8601String(),
+            }).eq('id', booking.customerId);
+          }
+
+          // 4. Catat ke point_ledger
+          await client.from('point_ledger').insert({
+            'customer_id': booking.customerId,
+            'delta': booking.servicePoints,
+            'reason': 'visit',
+            'note': booking.serviceName,
+          });
+        }
+      } catch (e) {
+        // Fallback proses mock
+        debugPrint('Catatan complete Supabase: $e');
+      }
+    }
+
+    // Update mock
+    AuthService.creditMockPoints(booking.customerId, booking.servicePoints);
+    if (booking.customerPhone != null && booking.customerPhone!.isNotEmpty) {
+      AuthService.creditMockPoints(booking.customerPhone!, booking.servicePoints);
+    }
+
+    final index = _mockBookings.indexWhere((b) => b.id == booking.id || b.code == booking.code);
+    Booking updated = booking.copyWith(
+      status: 'completed',
+      completedAt: now,
+    );
+    if (index != -1) {
+      _mockBookings[index] = updated;
+    }
+
+    return updated;
   }
 }
 

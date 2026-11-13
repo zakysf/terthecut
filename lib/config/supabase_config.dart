@@ -3,6 +3,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseConfig {
+  static const String fallbackUrl = 'https://tdbetcjkqeihudihsjlq.supabase.co';
+  static const String fallbackAnonKey = 'sb_publishable_1tBjL_d4dLJW7c0twHPzDw_rP6JsjNP';
+
   static String supabaseUrl = '';
   static String supabaseAnonKey = '';
   static bool isConfigured = false;
@@ -15,38 +18,33 @@ class SupabaseConfig {
       supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
     } catch (e) {
       if (kDebugMode) {
-        print('Info: File .env tidak ditemukan atau belum diisi ($e).');
+        print('Info: File .env tidak terbaca ($e). Menggunakan konfigurasi cloud bawaan.');
       }
     }
 
-    // 2. Periksa apakah kredensial valid dan bukan placeholder
-    final bool hasValidCredentials = supabaseUrl.isNotEmpty &&
-        supabaseAnonKey.isNotEmpty &&
-        !supabaseUrl.contains('YOUR_PROJECT_ID') &&
-        !supabaseAnonKey.contains('YOUR_SUPABASE_ANON_KEY');
+    // Gunakan fallback kredensial nyata jika .env tidak tersedia (misal di Web / build)
+    if (supabaseUrl.isEmpty || supabaseUrl.contains('YOUR_PROJECT_ID')) {
+      supabaseUrl = fallbackUrl;
+    }
+    if (supabaseAnonKey.isEmpty || supabaseAnonKey.contains('YOUR_SUPABASE_ANON_KEY')) {
+      supabaseAnonKey = fallbackAnonKey;
+    }
 
-    if (hasValidCredentials) {
-      try {
-        await Supabase.initialize(
-          url: supabaseUrl,
-          // ignore: deprecated_member_use
-          anonKey: supabaseAnonKey,
-        );
-        isConfigured = true;
-        if (kDebugMode) {
-          print('Supabase berhasil terhubung via .env.');
-        }
-      } catch (e) {
-        isConfigured = false;
-        if (kDebugMode) {
-          print('Gagal inisialisasi Supabase, beralih ke local mock data: $e');
-        }
+    // 2. Inisialisasi Supabase resmi sebagai Single Source of Truth
+    try {
+      await Supabase.initialize(
+        url: supabaseUrl,
+        // ignore: deprecated_member_use
+        anonKey: supabaseAnonKey,
+      );
+      isConfigured = true;
+      if (kDebugMode) {
+        print('Supabase berhasil terhubung: $supabaseUrl');
       }
-    } else {
+    } catch (e) {
       isConfigured = false;
       if (kDebugMode) {
-        print('Kredensial Supabase di .env belum diisi nyata.');
-        print('Aplikasi berjalan otomatis dalam mode Demo / Mock Data.');
+        print('Gagal inisialisasi Supabase: $e');
       }
     }
   }
