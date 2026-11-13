@@ -8,7 +8,9 @@ import '../../controllers/branch_controller.dart';
 class AdminDashboardView extends StatelessWidget {
   AdminDashboardView({super.key});
 
-  final AuthController _authController = Get.find<AuthController>();
+  final AuthController _authController = Get.isRegistered<AuthController>()
+      ? Get.find<AuthController>()
+      : Get.put(AuthController(), permanent: true);
   final BranchController _branchController = Get.put(BranchController());
 
   @override

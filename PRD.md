@@ -227,12 +227,13 @@ begin
 end;
 $$ language plpgsql;
 
--- 1. PROFILES & AKUN (Terhubung ke auth.users Supabase)
-create table profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  role user_role not null default 'customer',
-  phone text unique,
-  name text,
+-- 1. PROFILES & PENGGUNA (Login & Registrasi Sederhana: Murni No Telepon + Password)
+create table if not exists public.profiles (
+  id uuid primary key default gen_random_uuid(),
+  phone text unique not null,
+  name text not null,
+  password text not null,
+  role text not null default 'customer',
   points_balance int not null default 0 check (points_balance >= 0),
   lifetime_points int not null default 0 check (lifetime_points >= 0),
   last_visit_at timestamptz,
@@ -243,24 +244,8 @@ create table profiles (
 create trigger trg_profiles_upd before update on profiles
   for each row execute function set_updated_at();
 
--- Trigger otomatis pembuatan profil saat user sign up via Supabase Auth
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, phone, name, role)
-  values (
-    new.id,
-    new.phone,
-    coalesce(new.raw_user_meta_data->>'name', 'Pelanggan'),
-    coalesce((new.raw_user_meta_data->>'role')::user_role, 'customer')
-  );
-  return new;
-end;
-$$ language plpgsql security definer;
-
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
+-- Bebaskan RLS pada tabel profiles agar query pencocokan nomor HP & password langsung berhasil
+alter table public.profiles disable row level security;
 
 -- 2. CABANG (11 Cabang Barbershop)
 create table branches (
@@ -752,6 +737,17 @@ insert into rewards (name, description, terms, points_cost, sort_order) values
  ('Diskon Rp 10.000', 'Potongan harga langsung untuk satu kali layanan', 'Berlaku 30 hari di seluruh cabang', 50, 1),
  ('Gratis Hair Mask', 'Satu kali perawatan Hair Mask - Short Hair', 'Berlaku 30 hari di seluruh cabang', 80, 2),
  ('Gratis Premium Haircut', 'Satu kali potongan Premium Haircut', 'Berlaku 30 hari di seluruh cabang', 150, 3);
+
+-- 6. Inspirasi Gaya Rambut (Gambar Asli dari Internet)
+insert into hairstyles (name, description, photo_url) values
+ ('Classic Side Part', 'Belah samping klasik rapi dengan gradasi taper bersih. Cocok untuk acara formal maupun kantor.', 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&auto=format&fit=crop&q=80'),
+ ('Textured French Crop', 'Bagian atas bertekstur acak natural dengan poni tumpul dipadukan high fade di sisi samping.', 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=600&auto=format&fit=crop&q=80'),
+ ('Korean Two-Block Perm', 'Gaya ikal Korea bervolume lembut di bagian atas dengan sisi samping dipotong rapi.', 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=600&auto=format&fit=crop&q=80'),
+ ('Low Fade Pompadour', 'Jambul mengembang bervolume tinggi dengan gradasi fade rendah yang bersih dan elegan.', 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80'),
+ ('Modern Buzz Cut', 'Potongan cepak minimalis seragam yang mempertegas bentuk rahang dan kontur wajah maskulin.', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80'),
+ ('Modern Drop Fade Mullet', 'Gaya kontemporer dengan bagian belakang lebih tebal dan sisi pelipis fade tipis berkarakter.', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80'),
+ ('Comma Hair (Curtain)', 'Gaya poni melengkung menyerupai tanda koma khas Korea yang santai namun tetap rapi.', 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=600&auto=format&fit=crop&q=80'),
+ ('Curly Taper Fade', 'Mempertahankan tekstur ikal atau keriting alami di atas kepala dengan transisi taper halus di samping.', 'https://images.unsplash.com/photo-1519699047748-de8e457a634e?w=600&auto=format&fit=crop&q=80');
 ```
 
 ---

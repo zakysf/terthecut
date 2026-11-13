@@ -13,7 +13,7 @@ class BranchDetailView extends StatefulWidget {
 }
 
 class _BranchDetailViewState extends State<BranchDetailView> {
-  final BranchController _controller = Get.find<BranchController>();
+  final BranchController _controller = Get.put(BranchController());
   late final Branch branch;
 
   @override
@@ -55,21 +55,23 @@ class _BranchDetailViewState extends State<BranchDetailView> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.12),
+                      color: branch.isOpenNow
+                          ? AppColors.success.withValues(alpha: 0.12)
+                          : AppColors.danger.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(2),
                     ),
                     child: Text(
-                      'BUKA HARI INI',
+                      branch.isOpenNow ? 'BUKA SEKARANG' : 'TUTUP',
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.success,
+                        color: branch.isOpenNow ? AppColors.success : AppColors.danger,
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '${branch.openTime} - ${branch.closeTime} WIB',
+                    branch.formattedOperatingHours,
                     style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkSoft),
                   ),
                 ],

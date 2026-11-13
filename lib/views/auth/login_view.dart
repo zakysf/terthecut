@@ -140,21 +140,18 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 const SizedBox(height: 24),
 
-                // Form Input Identifier
+                // Form Input Nomor Telepon
                 Text(
-                  _isAdminTab ? 'EMAIL / USERNAME ADMIN' : 'NOMOR TELEPON / EMAIL',
+                  _isAdminTab ? 'NOMOR TELEPON ADMIN' : 'NOMOR TELEPON',
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _identifierController,
-                  keyboardType: _isAdminTab
-                      ? TextInputType.emailAddress
-                      : TextInputType.text,
+                  keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
-                    hintText: _isAdminTab
-                        ? 'admin@terthecut.com'
-                        : '08123456789 / nama@email.com',
+                    prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: AppColors.inkSoft),
+                    hintText: _isAdminTab ? '081999888777' : '081234567890',
                   ),
                 ),
                 const SizedBox(height: 16),

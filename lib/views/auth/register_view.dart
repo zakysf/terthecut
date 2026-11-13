@@ -12,7 +12,9 @@ class RegisterView extends StatefulWidget {
 }
 
 class _RegisterViewState extends State<RegisterView> {
-  final AuthController _authController = Get.find<AuthController>();
+  final AuthController _authController = Get.isRegistered<AuthController>()
+      ? Get.find<AuthController>()
+      : Get.put(AuthController(), permanent: true);
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _identifierController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -105,12 +107,16 @@ class _RegisterViewState extends State<RegisterView> {
               ),
               const SizedBox(height: 16),
 
-              // Form Nomor Telepon / Email
-              Text('NOMOR TELEPON / EMAIL', style: Theme.of(context).textTheme.labelSmall),
+              // Form Nomor Telepon
+              Text('NOMOR TELEPON', style: Theme.of(context).textTheme.labelSmall),
               const SizedBox(height: 8),
               TextField(
                 controller: _identifierController,
-                decoration: const InputDecoration(hintText: '08123456789 atau nama@email.com'),
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.phone_outlined, size: 20, color: AppColors.inkSoft),
+                  hintText: '081234567890',
+                ),
               ),
               const SizedBox(height: 16),
 

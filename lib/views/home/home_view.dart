@@ -8,7 +8,9 @@ import '../../controllers/branch_controller.dart';
 class HomeView extends StatelessWidget {
   HomeView({super.key});
 
-  final AuthController _authController = Get.find<AuthController>();
+  final AuthController _authController = Get.isRegistered<AuthController>()
+      ? Get.find<AuthController>()
+      : Get.put(AuthController(), permanent: true);
   final BranchController _branchController = Get.put(BranchController());
 
   @override
@@ -252,12 +254,28 @@ class HomeView extends StatelessWidget {
                       margin: const EdgeInsets.only(bottom: 10),
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        title: Text(
-                          branch.name,
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        title: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                branch.name,
+                                style: GoogleFonts.playfairDisplay(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              branch.statusText,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: branch.isOpenNow ? AppColors.success : AppColors.danger,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
                         ),
                         subtitle: Padding(
                           padding: const EdgeInsets.only(top: 4.0),

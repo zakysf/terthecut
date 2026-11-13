@@ -54,14 +54,32 @@ class HairstyleListView extends StatelessWidget {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          if (item.photoUrl != null)
+                          if (item.photoUrl != null && item.photoUrl!.isNotEmpty)
                             Image.network(
                               item.photoUrl!,
                               fit: BoxFit.cover,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  color: AppColors.paper,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded /
+                                              loadingProgress.expectedTotalBytes!
+                                          : null,
+                                      strokeWidth: 2,
+                                      color: AppColors.inkSoft,
+                                    ),
+                                  ),
+                                );
+                              },
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
                                   color: AppColors.hairline,
-                                  child: const Icon(Icons.broken_image, color: AppColors.inkSoft),
+                                  child: const Center(
+                                    child: Icon(Icons.broken_image_outlined, color: AppColors.inkSoft),
+                                  ),
                                 );
                               },
                             )

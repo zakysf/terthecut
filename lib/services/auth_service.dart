@@ -1,177 +1,183 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';
 import '../models/profile.dart';
 
 class AuthService {
-  // Demo mock user untuk pengujian jika belum terhubung Supabase
-  static Profile _mockCustomer = Profile(
-    id: 'mock-customer-1',
-    role: 'customer',
-    phone: '081234567890',
-    name: 'Zaky Surya',
-    pointsBalance: 120,
-    lifetimePoints: 120,
-    lastVisitAt: DateTime.now().subtract(const Duration(days: 7)),
-  );
-
-  static final Profile _mockAdmin = Profile(
-    id: 'mock-admin-1',
-    role: 'admin',
-    phone: '081999888777',
-    name: 'Admin Utama Ter The Cut',
-    pointsBalance: 0,
-    lifetimePoints: 0,
-  );
+  // In-memory mock jika Supabase belum terhubung
+  static final List<Profile> _mockProfiles = [
+    Profile(
+      id: 'mock-admin-1',
+      role: 'admin',
+      phone: '081999888777',
+      name: 'Admin Utama Ter The Cut',
+      pointsBalance: 0,
+      lifetimePoints: 0,
+    ),
+    Profile(
+      id: 'mock-customer-1',
+      role: 'customer',
+      phone: '081234567890',
+      name: 'Bagas Pratama',
+      pointsBalance: 120,
+      lifetimePoints: 120,
+      lastVisitAt: DateTime.now().subtract(const Duration(days: 7)),
+    ),
+  ];
 
   static Profile? _currentSessionProfile;
 
+  /// Normalisasi nomor telepon: hanya digit angka (misal 081234567890)
+  static String normalizePhone(String raw) {
+    var digits = raw.trim().replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('628')) {
+      digits = '0${digits.substring(2)}';
+    } else if (digits.startsWith('62')) {
+      digits = '0${digits.substring(2)}';
+    }
+    return digits;
+  }
+
+  /// LOGIN SEDERHANA: Langsung mencocokkan nomor telepon dan kata sandi di database
   Future<Profile> login({
-    required String identifier, // Email atau nomor telepon
+    required String identifier, // Nomor telepon
     required String password,
     bool asAdmin = false,
   }) async {
+    final phone = normalizePhone(identifier);
+
+    if (phone.length < 10) {
+      throw Exception('Nomor telepon minimal 10 digit angka.');
+    }
+    if (password.length < 6) {
+      throw Exception('Kata sandi minimal 6 karakter.');
+    }
+
     final client = SupabaseConfig.client;
 
-    if (client != null) {
+    if (client != null && SupabaseConfig.isConfigured) {
       try {
-        final AuthResponse res;
-        if (identifier.contains('@')) {
-          res = await client.auth.signInWithPassword(
-            email: identifier.trim(),
-            password: password,
-          );
-        } else {
-          res = await client.auth.signInWithPassword(
-            phone: identifier.trim(),
-            password: password,
-          );
-        }
-
-        final user = res.user;
-        if (user == null) throw Exception('Pengguna tidak ditemukan.');
-
-        // Ambil profil dari tabel profiles
-        final data = await client
+        final query = client
             .from('profiles')
             .select()
-            .eq('id', user.id)
-            .maybeSingle();
+            .eq('phone', phone)
+            .eq('password', password);
 
-        if (data != null) {
-          final profile = Profile.fromJson(data);
-          _currentSessionProfile = profile;
-          return profile;
-        } else {
-          // Fallback profil baru jika trigger belum jalan
-          final profile = Profile(
-            id: user.id,
-            role: asAdmin ? 'admin' : 'customer',
-            name: user.userMetadata?['name'] ?? 'Pelanggan',
-            phone: user.phone ?? identifier,
-          );
-          _currentSessionProfile = profile;
-          return profile;
-        }
-      } catch (e) {
-        // Jika gagal koneksi supabase, coba fallback mock jika kredensial demo
-        if (password == 'admin123' || asAdmin) {
-          _currentSessionProfile = _mockAdmin;
-          return _mockAdmin;
-        }
-        throw Exception(e.toString().replaceAll('Exception:', '').trim());
-      }
-    } else {
-      // Mock Auth Fallback Mode
-      await Future.delayed(const Duration(milliseconds: 600)); // Simulasi network
-      if (asAdmin) {
-        if (password == 'admin123' || password.length >= 6) {
-          _currentSessionProfile = _mockAdmin;
-          return _mockAdmin;
-        } else {
-          throw Exception('Password admin minimal 6 karakter atau gunakan "admin123".');
-        }
-      } else {
-        if (password.length < 6) {
-          throw Exception('Password minimal 6 karakter.');
-        }
-        _mockCustomer = Profile(
-          id: 'mock-customer-1',
-          role: 'customer',
-          phone: identifier,
-          name: identifier.contains('@') ? identifier.split('@')[0] : 'Pelanggan Ter The Cut',
-          pointsBalance: 120,
-          lifetimePoints: 120,
-          lastVisitAt: DateTime.now().subtract(const Duration(days: 7)),
-        );
-        _currentSessionProfile = _mockCustomer;
-        return _mockCustomer;
-      }
-    }
-  }
+        final data = await query.maybeSingle();
 
-  Future<Profile> register({
-    required String name,
-    required String identifier,
-    required String password,
-  }) async {
-    final client = SupabaseConfig.client;
-
-    if (client != null) {
-      try {
-        final AuthResponse res;
-        if (identifier.contains('@')) {
-          res = await client.auth.signUp(
-            email: identifier.trim(),
-            password: password,
-            data: {'name': name, 'role': 'customer'},
-          );
-        } else {
-          res = await client.auth.signUp(
-            phone: identifier.trim(),
-            password: password,
-            data: {'name': name, 'role': 'customer'},
-          );
+        if (data == null) {
+          throw Exception('Nomor telepon atau kata sandi salah.');
         }
 
-        final user = res.user;
-        if (user == null) throw Exception('Pendaftaran akun gagal.');
+        final profile = Profile.fromJson(data);
 
-        final profile = Profile(
-          id: user.id,
-          role: 'customer',
-          name: name,
-          phone: identifier,
-          pointsBalance: 0,
-          lifetimePoints: 0,
-        );
+        if (asAdmin && !profile.isAdmin) {
+          throw Exception('Akun ini bukan akun staf admin.');
+        }
+
         _currentSessionProfile = profile;
         return profile;
       } catch (e) {
         throw Exception(e.toString().replaceAll('Exception:', '').trim());
       }
     } else {
-      await Future.delayed(const Duration(milliseconds: 600));
-      if (password.length < 6) {
-        throw Exception('Password minimal 6 karakter.');
+      // Mock Fallback Mode
+      await Future.delayed(const Duration(milliseconds: 500));
+      final found = _mockProfiles.cast<Profile?>().firstWhere(
+            (p) => p?.phone == phone,
+            orElse: () => null,
+          );
+
+      if (found != null) {
+        if (asAdmin && !found.isAdmin) {
+          throw Exception('Akun ini bukan akun staf admin.');
+        }
+        _currentSessionProfile = found;
+        return found;
       }
+
+      final newMock = Profile(
+        id: 'mock-${DateTime.now().millisecondsSinceEpoch}',
+        role: asAdmin ? 'admin' : 'customer',
+        phone: phone,
+        name: asAdmin ? 'Admin Ter The Cut' : 'Pelanggan Ter The Cut',
+      );
+      _mockProfiles.add(newMock);
+      _currentSessionProfile = newMock;
+      return newMock;
+    }
+  }
+
+  /// REGISTER SEDERHANA: Simpan nama, no telp, dan password langsung ke tabel profiles
+  Future<Profile> register({
+    required String name,
+    required String identifier, // Nomor telepon
+    required String password,
+  }) async {
+    final phone = normalizePhone(identifier);
+
+    if (name.trim().isEmpty) {
+      throw Exception('Nama lengkap wajib diisi.');
+    }
+    if (phone.length < 10) {
+      throw Exception('Nomor telepon minimal 10 digit angka.');
+    }
+    if (password.length < 6) {
+      throw Exception('Kata sandi minimal 6 karakter.');
+    }
+
+    final client = SupabaseConfig.client;
+
+    if (client != null && SupabaseConfig.isConfigured) {
+      try {
+        // 1. Cek apakah nomor sudah ada di database
+        final existing = await client
+            .from('profiles')
+            .select('id')
+            .eq('phone', phone)
+            .maybeSingle();
+
+        if (existing != null) {
+          throw Exception('Nomor telepon sudah terdaftar. Silakan langsung masuk.');
+        }
+
+        // 2. Simpan user baru langsung ke tabel profiles
+        final data = await client.from('profiles').insert({
+          'phone': phone,
+          'name': name.trim(),
+          'password': password,
+          'role': 'customer',
+          'points_balance': 0,
+          'lifetime_points': 0,
+        }).select().single();
+
+        final profile = Profile.fromJson(data);
+        _currentSessionProfile = profile;
+        return profile;
+      } catch (e) {
+        throw Exception(e.toString().replaceAll('Exception:', '').trim());
+      }
+    } else {
+      // Mock Fallback Mode
+      await Future.delayed(const Duration(milliseconds: 500));
+      final existing = _mockProfiles.any((p) => p.phone == phone);
+      if (existing) {
+        throw Exception('Nomor telepon sudah terdaftar. Silakan langsung masuk.');
+      }
+
       final profile = Profile(
-        id: 'new-cust-${DateTime.now().millisecondsSinceEpoch}',
+        id: 'mock-${DateTime.now().millisecondsSinceEpoch}',
         role: 'customer',
-        name: name,
-        phone: identifier,
+        name: name.trim(),
+        phone: phone,
         pointsBalance: 0,
         lifetimePoints: 0,
       );
+      _mockProfiles.add(profile);
       _currentSessionProfile = profile;
       return profile;
     }
   }
 
   Future<void> logout() async {
-    final client = SupabaseConfig.client;
-    if (client != null) {
-      await client.auth.signOut();
-    }
     _currentSessionProfile = null;
   }
 

@@ -7,7 +7,7 @@ import '../../controllers/branch_controller.dart';
 class BranchListView extends StatelessWidget {
   BranchListView({super.key});
 
-  final BranchController _controller = Get.find<BranchController>();
+  final BranchController _controller = Get.put(BranchController());
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -105,16 +105,22 @@ class BranchListView extends StatelessWidget {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: AppColors.success.withValues(alpha: 0.12),
+                                      color: branch.isOpenNow
+                                          ? AppColors.success.withValues(alpha: 0.12)
+                                          : AppColors.danger.withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(2),
-                                      border: Border.all(color: AppColors.success.withValues(alpha: 0.4)),
+                                      border: Border.all(
+                                        color: branch.isOpenNow
+                                            ? AppColors.success.withValues(alpha: 0.4)
+                                            : AppColors.danger.withValues(alpha: 0.4),
+                                      ),
                                     ),
                                     child: Text(
-                                      'BUKA',
+                                      branch.statusText,
                                       style: GoogleFonts.inter(
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
-                                        color: AppColors.success,
+                                        color: branch.isOpenNow ? AppColors.success : AppColors.danger,
                                         letterSpacing: 1.0,
                                       ),
                                     ),
@@ -148,7 +154,7 @@ class BranchListView extends StatelessWidget {
                                       const Icon(Icons.access_time, size: 14, color: AppColors.inkSoft),
                                       const SizedBox(width: 6),
                                       Text(
-                                        '${branch.openTime} - ${branch.closeTime} WIB',
+                                        branch.formattedOperatingHours,
                                         style: GoogleFonts.inter(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w500,
