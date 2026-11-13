@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/branch_controller.dart';
+import '../../controllers/booking_controller.dart';
 
 class HomeView extends StatelessWidget {
   HomeView({super.key});
@@ -28,6 +29,17 @@ class HomeView extends StatelessWidget {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.event_note_outlined, size: 22, color: AppColors.ink),
+            tooltip: 'Booking Saya',
+            onPressed: () {
+              final bc = Get.isRegistered<BookingController>()
+                  ? Get.find<BookingController>()
+                  : Get.put(BookingController());
+              bc.loadMyBookings();
+              Get.toNamed('/my-bookings');
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout, size: 20, color: AppColors.inkSoft),
             tooltip: 'Keluar',
@@ -184,6 +196,20 @@ class HomeView extends StatelessWidget {
                   ),
                 );
               }),
+              const SizedBox(height: 20),
+
+              // Tombol Utama Reservasi Jadwal (Sprint 2)
+              ElevatedButton.icon(
+                icon: const Icon(Icons.calendar_month_outlined, size: 20),
+                label: const Text('RESERVASI JADWAL SEKARANG'),
+                onPressed: () {
+                  final bc = Get.isRegistered<BookingController>()
+                      ? Get.find<BookingController>()
+                      : Get.put(BookingController());
+                  bc.initWizard();
+                  Get.toNamed('/booking-wizard');
+                },
+              ),
               const SizedBox(height: 28),
 
               // Menu Pintasan Cepat
@@ -199,17 +225,29 @@ class HomeView extends StatelessWidget {
                     label: '11 Cabang',
                     onTap: () => Get.toNamed('/branches'),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   _buildQuickAction(
                     icon: Icons.content_cut_outlined,
                     label: 'Layanan',
                     onTap: () => Get.toNamed('/services'),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   _buildQuickAction(
                     icon: Icons.face_outlined,
                     label: 'Inspirasi',
                     onTap: () => Get.toNamed('/hairstyles'),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildQuickAction(
+                    icon: Icons.event_note_outlined,
+                    label: 'Jadwal Saya',
+                    onTap: () {
+                      final bc = Get.isRegistered<BookingController>()
+                          ? Get.find<BookingController>()
+                          : Get.put(BookingController());
+                      bc.loadMyBookings();
+                      Get.toNamed('/my-bookings');
+                    },
                   ),
                 ],
               ),

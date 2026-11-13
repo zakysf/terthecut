@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../config/theme.dart';
 import '../../controllers/service_controller.dart';
+import '../../controllers/booking_controller.dart';
 
 class ServiceCatalogView extends StatelessWidget {
   ServiceCatalogView({super.key});
@@ -83,11 +84,19 @@ class ServiceCatalogView extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final svc = services[index];
                     return Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                      child: InkWell(
+                        onTap: () {
+                          final bc = Get.isRegistered<BookingController>()
+                              ? Get.find<BookingController>()
+                              : Get.put(BookingController());
+                          bc.initWizard(initialService: svc);
+                          Get.toNamed('/booking-wizard');
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -198,7 +207,8 @@ class ServiceCatalogView extends StatelessWidget {
                           ],
                         ),
                       ),
-                    );
+                    ),
+                  );
                   },
                 );
               }),

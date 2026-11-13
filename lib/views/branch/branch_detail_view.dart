@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
 import '../../models/branch.dart';
 import '../../controllers/branch_controller.dart';
+import '../../controllers/booking_controller.dart';
 
 class BranchDetailView extends StatefulWidget {
   const BranchDetailView({super.key});
@@ -207,11 +208,11 @@ class _BranchDetailViewState extends State<BranchDetailView> {
                 icon: const Icon(Icons.calendar_month_outlined, size: 18),
                 label: const Text('PESAN JADWAL DI CABANG INI'),
                 onPressed: () {
-                  Get.snackbar(
-                    'Reservasi Booking',
-                    'Alur booking lengkap akan aktif pada Sprint 2.',
-                    snackPosition: SnackPosition.BOTTOM,
-                  );
+                  final bc = Get.isRegistered<BookingController>()
+                      ? Get.find<BookingController>()
+                      : Get.put(BookingController());
+                  bc.initWizard(initialBranch: branch);
+                  Get.toNamed('/booking-wizard');
                 },
               ),
             ],
