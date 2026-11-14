@@ -7,7 +7,8 @@ import '../../controllers/loyalty_controller.dart';
 import '../../models/point_ledger.dart';
 
 class PointLedgerView extends StatelessWidget {
-  PointLedgerView({super.key});
+  final bool showBackButton;
+  PointLedgerView({super.key, this.showBackButton = true});
 
   final LoyaltyController _controller = Get.isRegistered<LoyaltyController>()
       ? Get.find<LoyaltyController>()
@@ -26,6 +27,7 @@ class PointLedgerView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
+        automaticallyImplyLeading: showBackButton,
         title: Text(
           'MUTASI & RIWAYAT POIN',
           style: GoogleFonts.playfairDisplay(

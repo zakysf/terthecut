@@ -410,7 +410,10 @@ class BookingWizardView extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 4,
                             children: [
                               Text(
                                 'Bebas / Auto-Assign',
@@ -420,7 +423,6 @@ class BookingWizardView extends StatelessWidget {
                                   color: AppColors.ink,
                                 ),
                               ),
-                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 6,
@@ -1180,43 +1182,45 @@ class BookingWizardView extends StatelessWidget {
 
         // Bottom CTA Lanjut ke Ringkasan
         Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: const BoxDecoration(
             color: AppColors.surface,
-            border: const Border(top: BorderSide(color: AppColors.hairline)),
+            border: Border(top: BorderSide(color: AppColors.hairline)),
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Obx(() {
-                final slot = _bookingController.selectedSlot.value;
-                return Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'WAKTU TERPILIH:',
-                        style: Theme.of(Get.context!).textTheme.labelSmall,
-                      ),
-                      Text(
-                        slot != null
-                            ? '${slot.label} - ${(slot.hour + duration).toString().padLeft(2, '0')}:00 WIB'
-                            : 'Belum memilih jam',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: slot != null
-                              ? AppColors.accent
-                              : AppColors.inkSoft,
-                        ),
-                      ),
-                    ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'WAKTU TERPILIH',
+                    style: Theme.of(Get.context!).textTheme.labelSmall,
                   ),
-                );
-              }),
-              ElevatedButton(
-                onPressed: () => _bookingController.proceedToSummary(),
-                child: const Text('LANJUT KE RINGKASAN ->'),
+                  Obx(() {
+                    final slot = _bookingController.selectedSlot.value;
+                    return Text(
+                      slot != null
+                          ? '${slot.label} - ${(slot.hour + duration).toString().padLeft(2, '0')}:00 WIB'
+                          : 'Belum memilih jam',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: slot != null
+                            ? AppColors.accent
+                            : AppColors.inkSoft,
+                      ),
+                    );
+                  }),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _bookingController.proceedToSummary(),
+                  child: const Text('LANJUT KE RINGKASAN ->'),
+                ),
               ),
             ],
           ),
@@ -1306,8 +1310,8 @@ class BookingWizardView extends StatelessWidget {
                 // Header Tiket
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                   decoration: const BoxDecoration(
                     color: AppColors.ink,
@@ -1316,24 +1320,39 @@ class BookingWizardView extends StatelessWidget {
                     ),
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'TER THE CUT BARBERSHOP',
-                        style: GoogleFonts.playfairDisplay(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2.0,
-                          color: AppColors.paper,
+                      Expanded(
+                        child: Text(
+                          'TER THE CUT BARBERSHOP',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                            color: AppColors.paper,
+                          ),
                         ),
                       ),
-                      Text(
-                        'RESERVASI',
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                          color: AppColors.gold,
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.gold.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(3),
+                          border: Border.all(color: AppColors.gold, width: 0.5),
+                        ),
+                        child: Text(
+                          'RESERVASI',
+                          style: GoogleFonts.inter(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.0,
+                            color: AppColors.gold,
+                          ),
                         ),
                       ),
                     ],
@@ -1653,7 +1672,12 @@ class BookingWizardView extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: Theme.of(Get.context!).textTheme.labelSmall),
+        Flexible(
+          child: Text(
+            label,
+            style: Theme.of(Get.context!).textTheme.labelSmall,
+          ),
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Text(

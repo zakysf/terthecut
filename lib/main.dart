@@ -6,7 +6,7 @@ import 'config/theme.dart';
 import 'controllers/auth_controller.dart';
 import 'views/auth/login_view.dart';
 import 'views/auth/register_view.dart';
-import 'views/home/home_view.dart';
+import 'views/customer_root_view.dart';
 import 'views/branch/branch_list_view.dart';
 import 'views/branch/branch_detail_view.dart';
 import 'views/services/service_catalog_view.dart';
@@ -48,7 +48,7 @@ class TerTheCutApp extends StatelessWidget {
       getPages: [
         GetPage(name: '/login', page: () => const LoginView()),
         GetPage(name: '/register', page: () => const RegisterView()),
-        GetPage(name: '/home', page: () => HomeView()),
+        GetPage(name: '/home', page: () => const CustomerRootView()),
         GetPage(name: '/branches', page: () => BranchListView()),
         GetPage(name: '/branch-detail', page: () => const BranchDetailView()),
         GetPage(name: '/services', page: () => ServiceCatalogView()),

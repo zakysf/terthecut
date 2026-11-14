@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../config/theme.dart';
 import '../../controllers/auth_controller.dart';
 
+/// Halaman Masuk Portal Tunggal (Single Portal dengan RBAC Otomatis)
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
 
@@ -12,11 +14,13 @@ class LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<LoginView> {
-  final AuthController _authController = Get.put(AuthController());
+  final AuthController _authController = Get.isRegistered<AuthController>()
+      ? Get.find<AuthController>()
+      : Get.put(AuthController(), permanent: true);
+
   final TextEditingController _identifierController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  bool _isAdminTab = false;
   bool _obscurePassword = true;
 
   @override
@@ -33,7 +37,7 @@ class _LoginViewState extends State<LoginView> {
     if (identifier.isEmpty || password.isEmpty) {
       Get.snackbar(
         'Perhatian',
-        'Harap isi seluruh kolom dengan lengkap.',
+        'Harap isi nomor telepon dan kata sandi dengan lengkap.',
         snackPosition: SnackPosition.BOTTOM,
       );
       return;
@@ -42,7 +46,6 @@ class _LoginViewState extends State<LoginView> {
     _authController.login(
       identifier: identifier,
       password: password,
-      asAdmin: _isAdminTab,
     );
   }
 
@@ -58,7 +61,7 @@ class _LoginViewState extends State<LoginView> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header Brand
+                // Header Brand Ter The Cut
                 Text(
                   'TER THE CUT',
                   textAlign: TextAlign.center,
@@ -80,83 +83,29 @@ class _LoginViewState extends State<LoginView> {
                     color: AppColors.accent,
                   ),
                 ),
-                const SizedBox(height: 36),
-
-                // Tab Pilihan: Pelanggan vs Admin
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: AppColors.hairline),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isAdminTab = false),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: !_isAdminTab ? AppColors.ink : Colors.transparent,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Text(
-                              'PELANGGAN',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.2,
-                                color: !_isAdminTab ? AppColors.paper : AppColors.inkSoft,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isAdminTab = true),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: _isAdminTab ? AppColors.ink : Colors.transparent,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Text(
-                              'STAF ADMIN',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.2,
-                                color: _isAdminTab ? AppColors.paper : AppColors.inkSoft,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 40),
 
                 // Form Input Nomor Telepon
                 Text(
-                  _isAdminTab ? 'NOMOR TELEPON ADMIN' : 'NOMOR TELEPON',
+                  'NOMOR TELEPON',
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _identifierController,
                   keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: AppColors.inkSoft),
-                    hintText: _isAdminTab ? '081999888777' : '081234567890',
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(
+                      Icons.phone_outlined,
+                      size: 20,
+                      color: AppColors.inkSoft,
+                    ),
+                    hintText: '081234567890',
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
 
-                // Form Input Password
+                // Form Input Kata Sandi
                 Text(
                   'KATA SANDI',
                   style: Theme.of(context).textTheme.labelSmall,
@@ -167,19 +116,27 @@ class _LoginViewState extends State<LoginView> {
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     hintText: 'Minimal 6 karakter',
+                    prefixIcon: const Icon(
+                      Icons.lock_outline,
+                      size: 20,
+                      color: AppColors.inkSoft,
+                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                         color: AppColors.inkSoft,
                         size: 20,
                       ),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
 
-                // Tombol Masuk
+                // Tombol Masuk Utama
                 Obx(() {
                   if (_authController.isLoading) {
                     return const Center(
@@ -188,34 +145,36 @@ class _LoginViewState extends State<LoginView> {
                   }
                   return ElevatedButton(
                     onPressed: _submit,
-                    child: Text(_isAdminTab ? 'MASUK KE SISTEM ADMIN' : 'MASUK'),
+                    child: const Text('MASUK'),
                   );
                 }),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-                // Navigasi ke Registrasi
-                if (!_isAdminTab)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Belum memiliki akun member? ',
-                        style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkSoft),
+                // Tautan Pendaftaran Akun Pelanggan Baru
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Belum memiliki akun member? ',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: AppColors.inkSoft,
                       ),
-                      GestureDetector(
-                        onTap: () => Get.toNamed('/register'),
-                        child: Text(
-                          'Daftar Baru',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.accent,
-                            decoration: TextDecoration.underline,
-                          ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Get.toNamed('/register'),
+                      child: Text(
+                        'Daftar Baru',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.accent,
+                          decoration: TextDecoration.underline,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -224,4 +183,3 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 }
-

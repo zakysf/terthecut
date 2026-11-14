@@ -5,7 +5,8 @@ import '../../config/theme.dart';
 import '../../controllers/branch_controller.dart';
 
 class BranchListView extends StatelessWidget {
-  BranchListView({super.key});
+  final bool showBackButton;
+  BranchListView({super.key, this.showBackButton = true});
 
   final BranchController _controller = Get.put(BranchController());
   final TextEditingController _searchController = TextEditingController();
@@ -16,10 +17,13 @@ class BranchListView extends StatelessWidget {
       backgroundColor: AppColors.paper,
       appBar: AppBar(
         title: const Text('CABANG TER THE CUT'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
-        ),
+        automaticallyImplyLeading: showBackButton,
+        leading: showBackButton
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Get.back(),
+              )
+            : null,
       ),
       body: SafeArea(
         child: Column(

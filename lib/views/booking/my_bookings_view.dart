@@ -7,7 +7,8 @@ import '../../controllers/booking_controller.dart';
 import '../../models/booking.dart';
 
 class MyBookingsView extends StatelessWidget {
-  MyBookingsView({super.key});
+  final bool showBackButton;
+  MyBookingsView({super.key, this.showBackButton = true});
 
   final BookingController _controller = Get.isRegistered<BookingController>()
       ? Get.find<BookingController>()
@@ -30,6 +31,7 @@ class MyBookingsView extends StatelessWidget {
       child: Scaffold(
         backgroundColor: AppColors.paper,
         appBar: AppBar(
+          automaticallyImplyLeading: showBackButton,
           title: Text(
             'BOOKING SAYA',
             style: GoogleFonts.playfairDisplay(
@@ -138,9 +140,12 @@ class MyBookingsView extends StatelessWidget {
                     children: [
                       const Icon(Icons.check_circle_outline, color: AppColors.success, size: 16),
                       const SizedBox(width: 8),
-                      Text(
-                        'Jadwal Anda telah selesai di tab "Riwayat Selesai".',
-                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.success),
+                      Flexible(
+                        child: Text(
+                          'Jadwal Anda telah selesai di tab "Riwayat Selesai".',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.success),
+                        ),
                       ),
                     ],
                   ),

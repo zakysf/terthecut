@@ -36,11 +36,10 @@ class AuthService {
     return digits;
   }
 
-  /// LOGIN SEDERHANA: Langsung mencocokkan nomor telepon dan kata sandi di database
+  /// LOGIN PORTAL TUNGGAL: Mencocokkan nomor telepon dan kata sandi di database
   Future<Profile> login({
     required String identifier, // Nomor telepon
     required String password,
-    bool asAdmin = false,
   }) async {
     final phone = normalizePhone(identifier);
 
@@ -68,11 +67,6 @@ class AuthService {
         }
 
         final profile = Profile.fromJson(data);
-
-        if (asAdmin && !profile.isAdmin) {
-          throw Exception('Akun ini bukan akun staf admin.');
-        }
-
         _currentSessionProfile = profile;
         return profile;
       } catch (e) {
@@ -87,18 +81,15 @@ class AuthService {
           );
 
       if (found != null) {
-        if (asAdmin && !found.isAdmin) {
-          throw Exception('Akun ini bukan akun staf admin.');
-        }
         _currentSessionProfile = found;
         return found;
       }
 
       final newMock = Profile(
         id: 'mock-${DateTime.now().millisecondsSinceEpoch}',
-        role: asAdmin ? 'admin' : 'customer',
+        role: 'customer',
         phone: phone,
-        name: asAdmin ? 'Admin Ter The Cut' : 'Pelanggan Ter The Cut',
+        name: 'Pelanggan Ter The Cut',
       );
       _mockProfiles.add(newMock);
       _currentSessionProfile = newMock;

@@ -7,7 +7,8 @@ import '../../controllers/loyalty_controller.dart';
 import '../../models/reward.dart';
 
 class RewardCatalogView extends StatelessWidget {
-  RewardCatalogView({super.key});
+  final bool showBackButton;
+  RewardCatalogView({super.key, this.showBackButton = true});
 
   final LoyaltyController _loyaltyController = Get.isRegistered<LoyaltyController>()
       ? Get.find<LoyaltyController>()
@@ -26,6 +27,7 @@ class RewardCatalogView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
+        automaticallyImplyLeading: showBackButton,
         title: Text(
           'KATALOG REWARD',
           style: GoogleFonts.playfairDisplay(

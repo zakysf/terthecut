@@ -8,7 +8,8 @@ import '../../controllers/loyalty_controller.dart';
 import '../../models/reward_redemption.dart';
 
 class MyVouchersView extends StatelessWidget {
-  MyVouchersView({super.key});
+  final bool showBackButton;
+  MyVouchersView({super.key, this.showBackButton = true});
 
   final LoyaltyController _controller = Get.isRegistered<LoyaltyController>()
       ? Get.find<LoyaltyController>()
@@ -25,6 +26,7 @@ class MyVouchersView extends StatelessWidget {
       child: Scaffold(
         backgroundColor: AppColors.paper,
         appBar: AppBar(
+          automaticallyImplyLeading: showBackButton,
           title: Text(
             'DOMPET VOUCHER',
             style: GoogleFonts.playfairDisplay(

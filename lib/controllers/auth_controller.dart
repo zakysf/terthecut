@@ -44,7 +44,6 @@ class AuthController extends GetxController {
   Future<bool> login({
     required String identifier,
     required String password,
-    bool asAdmin = false,
   }) async {
     try {
       _isLoading.value = true;
@@ -53,13 +52,12 @@ class AuthController extends GetxController {
       final profile = await _authService.login(
         identifier: identifier,
         password: password,
-        asAdmin: asAdmin,
       );
 
       _currentProfile.value = profile;
       _isLoading.value = false;
 
-      // Navigasi sesuai role
+      // Navigasi otomatis berbasis RBAC (Role-Based Access Control)
       if (profile.isAdmin) {
         Get.offAllNamed('/admin-home');
       } else {

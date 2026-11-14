@@ -191,10 +191,11 @@ class BookingDetailView extends StatelessWidget {
                           const Divider(height: 24, color: AppColors.hairline),
 
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
                                 child: _buildDetailSection(
-                                  title: 'KAPSTER BERTUGAS',
+                                  title: 'KAPSTER',
                                   content: bookingArg.barberName,
                                   subContent: bookingArg.barberPref == 'auto'
                                       ? 'Sistem Auto-Assign'
@@ -202,9 +203,10 @@ class BookingDetailView extends StatelessWidget {
                                   icon: Icons.person_outline,
                                 ),
                               ),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: _buildDetailSection(
-                                  title: 'DURASI LAYANAN',
+                                  title: 'DURASI',
                                   content: '${bookingArg.durationHours} Jam Bulat',
                                   subContent: 'Slot waktu terkunci',
                                   icon: Icons.timer_outlined,
@@ -225,6 +227,7 @@ class BookingDetailView extends StatelessWidget {
                           const Divider(height: 24, color: AppColors.hairline),
 
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
                                 child: _buildDetailSection(
@@ -233,9 +236,10 @@ class BookingDetailView extends StatelessWidget {
                                   icon: Icons.calendar_today_outlined,
                                 ),
                               ),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: _buildDetailSection(
-                                  title: 'JAM MULAI & SELESAI',
+                                  title: 'JAM LAYANAN',
                                   content: bookingArg.formattedTimeRange,
                                   icon: Icons.access_time,
                                 ),
@@ -248,24 +252,29 @@ class BookingDetailView extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'TOTAL ESTIMASI',
-                                    style: Theme.of(context).textTheme.labelSmall,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    currencyFormat.format(bookingArg.servicePrice),
-                                    style: GoogleFonts.inter(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.ink,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'TOTAL ESTIMASI',
+                                      style: Theme.of(context).textTheme.labelSmall,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      currencyFormat.format(bookingArg.servicePrice),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.ink,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
@@ -273,6 +282,7 @@ class BookingDetailView extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     const Icon(Icons.stars, color: AppColors.gold, size: 16),
                                     const SizedBox(width: 4),
@@ -374,12 +384,21 @@ class BookingDetailView extends StatelessWidget {
           children: [
             Icon(icon, size: 14, color: AppColors.accent),
             const SizedBox(width: 6),
-            Text(title, style: Theme.of(Get.context!).textTheme.labelSmall),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(Get.context!).textTheme.labelSmall?.copyWith(letterSpacing: 1.0),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
           content,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.playfairDisplay(
             fontSize: 15,
             fontWeight: FontWeight.bold,
@@ -390,6 +409,8 @@ class BookingDetailView extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             subContent,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkSoft),
           ),
         ],

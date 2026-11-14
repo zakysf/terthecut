@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../config/theme.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/branch_controller.dart';
 import '../../controllers/booking_controller.dart';
+import '../../controllers/customer_nav_controller.dart';
 
 class HomeView extends StatelessWidget {
   HomeView({super.key});
@@ -34,14 +36,22 @@ class HomeView extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.event_note_outlined, size: 22, color: AppColors.ink),
+            icon: const Icon(
+              Icons.event_note_outlined,
+              size: 22,
+              color: AppColors.ink,
+            ),
             tooltip: 'Booking Saya',
             onPressed: () {
-              final bc = Get.isRegistered<BookingController>()
-                  ? Get.find<BookingController>()
-                  : Get.put(BookingController());
-              bc.loadMyBookings();
-              Get.toNamed('/my-bookings');
+              if (Get.isRegistered<CustomerNavController>()) {
+                Get.find<CustomerNavController>().toBooking();
+              } else {
+                final bc = Get.isRegistered<BookingController>()
+                    ? Get.find<BookingController>()
+                    : Get.put(BookingController());
+                bc.loadMyBookings();
+                Get.toNamed('/my-bookings');
+              }
             },
           ),
           IconButton(
@@ -107,7 +117,13 @@ class HomeView extends StatelessWidget {
                 final name = profile?.name ?? 'Ter The Cut Member';
 
                 return InkWell(
-                  onTap: () => Get.toNamed('/point-ledger'),
+                  onTap: () {
+                    if (Get.isRegistered<CustomerNavController>()) {
+                      Get.find<CustomerNavController>().toPointLedger();
+                    } else {
+                      Get.toNamed('/point-ledger');
+                    }
+                  },
                   borderRadius: BorderRadius.circular(6),
                   child: Container(
                     padding: const EdgeInsets.all(22),
@@ -138,7 +154,10 @@ class HomeView extends StatelessWidget {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.gold,
                                 borderRadius: BorderRadius.circular(3),
@@ -221,7 +240,7 @@ class HomeView extends StatelessWidget {
               ),
               const SizedBox(height: 28),
 
-              // Menu Pintasan Cepat
+              // Menu Pintasan Cepat (Simetris 2 Baris x 3 Kolom)
               Text(
                 'LAYANAN UTAMA',
                 style: Theme.of(context).textTheme.labelSmall,
@@ -234,33 +253,21 @@ class HomeView extends StatelessWidget {
                     label: '11 Cabang',
                     onTap: () => Get.toNamed('/branches'),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   _buildQuickAction(
                     icon: Icons.content_cut_outlined,
                     label: 'Layanan',
                     onTap: () => Get.toNamed('/services'),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   _buildQuickAction(
                     icon: Icons.face_outlined,
                     label: 'Inspirasi',
                     onTap: () => Get.toNamed('/hairstyles'),
                   ),
-                  const SizedBox(width: 8),
-                  _buildQuickAction(
-                    icon: Icons.event_note_outlined,
-                    label: 'Jadwal Saya',
-                    onTap: () {
-                      final bc = Get.isRegistered<BookingController>()
-                          ? Get.find<BookingController>()
-                          : Get.put(BookingController());
-                      bc.loadMyBookings();
-                      Get.toNamed('/my-bookings');
-                    },
-                  ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   _buildQuickAction(
@@ -268,17 +275,29 @@ class HomeView extends StatelessWidget {
                     label: 'Tukar Reward',
                     onTap: () => Get.toNamed('/rewards'),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   _buildQuickAction(
                     icon: Icons.wallet_outlined,
                     label: 'Voucher Saya',
-                    onTap: () => Get.toNamed('/my-vouchers'),
+                    onTap: () {
+                      if (Get.isRegistered<CustomerNavController>()) {
+                        Get.find<CustomerNavController>().toVouchers();
+                      } else {
+                        Get.toNamed('/my-vouchers');
+                      }
+                    },
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   _buildQuickAction(
                     icon: Icons.receipt_long_outlined,
                     label: 'Mutasi Poin',
-                    onTap: () => Get.toNamed('/point-ledger'),
+                    onTap: () {
+                      if (Get.isRegistered<CustomerNavController>()) {
+                        Get.find<CustomerNavController>().toPointLedger();
+                      } else {
+                        Get.toNamed('/point-ledger');
+                      }
+                    },
                   ),
                 ],
               ),
@@ -316,13 +335,18 @@ class HomeView extends StatelessWidget {
                   );
                 }
 
-                final previewBranches = _branchController.branches.take(3).toList();
+                final previewBranches = _branchController.branches
+                    .take(3)
+                    .toList();
                 return Column(
                   children: previewBranches.map((branch) {
                     return Card(
                       margin: const EdgeInsets.only(bottom: 10),
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         title: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -340,7 +364,9 @@ class HomeView extends StatelessWidget {
                               style: GoogleFonts.inter(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: branch.isOpenNow ? AppColors.success : AppColors.danger,
+                                color: branch.isOpenNow
+                                    ? AppColors.success
+                                    : AppColors.danger,
                                 letterSpacing: 0.5,
                               ),
                             ),
@@ -352,57 +378,25 @@ class HomeView extends StatelessWidget {
                             branch.address,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkSoft),
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: AppColors.inkSoft,
+                            ),
                           ),
                         ),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.inkSoft),
-                        onTap: () => Get.toNamed('/branch-detail', arguments: branch),
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: AppColors.inkSoft,
+                        ),
+                        onTap: () =>
+                            Get.toNamed('/branch-detail', arguments: branch),
                       ),
                     );
                   }).toList(),
                 );
               }),
               const SizedBox(height: 24),
-
-              // Editorial Promo Teaser Banner
-              GestureDetector(
-                onTap: () => Get.toNamed('/rewards'),
-                child: Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.confirmation_number_outlined, color: AppColors.accent, size: 30),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Tukar Reward dengan Poinmu',
-                              style: GoogleFonts.playfairDisplay(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.accent,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Dapatkan potongan hingga gratis potong rambut untuk setiap akumulasi kunjungan.',
-                              style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkSoft),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.accent),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -416,10 +410,11 @@ class HomeView extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return Expanded(
-      child: GestureDetector(
+      child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 18),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(4),
@@ -432,6 +427,9 @@ class HomeView extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
