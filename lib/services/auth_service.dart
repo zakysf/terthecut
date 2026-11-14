@@ -172,6 +172,37 @@ class AuthService {
     _currentSessionProfile = null;
   }
 
+  /// Pencarian Cepat Data Pelanggan oleh Kasir (US-20)
+  Future<List<Profile>> searchCustomers(String query) async {
+    final cleanQuery = query.trim().toLowerCase();
+    if (cleanQuery.isEmpty) return [];
+
+    final client = SupabaseConfig.client;
+    if (client != null && SupabaseConfig.isConfigured) {
+      try {
+        final data = await client
+            .from('profiles')
+            .select()
+            .eq('role', 'customer')
+            .or('name.ilike.%$cleanQuery%,phone.ilike.%$cleanQuery%')
+            .limit(10);
+
+        final list = (data as List)
+            .map((p) => Profile.fromJson(p as Map<String, dynamic>))
+            .toList();
+        if (list.isNotEmpty) return list;
+      } catch (_) {}
+    }
+
+    // Fallback Mock Profiles
+    return _mockProfiles.where((p) {
+      if (p.role != 'customer') return false;
+      final nameMatch = (p.name ?? '').toLowerCase().contains(cleanQuery);
+      final phoneMatch = (p.phone ?? '').contains(cleanQuery);
+      return nameMatch || phoneMatch;
+    }).toList();
+  }
+
   /// Memperbarui profil terbaru dari database Supabase atau mock
   Future<Profile?> getProfile(String idOrPhone) async {
     final client = SupabaseConfig.client;

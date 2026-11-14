@@ -7,6 +7,8 @@ import '../../controllers/auth_controller.dart';
 import '../../controllers/branch_controller.dart';
 import '../../controllers/booking_controller.dart';
 import '../../controllers/customer_nav_controller.dart';
+import '../../controllers/notification_controller.dart';
+import '../../controllers/promotion_controller.dart';
 
 class HomeView extends StatelessWidget {
   HomeView({super.key});
@@ -15,11 +17,15 @@ class HomeView extends StatelessWidget {
       ? Get.find<AuthController>()
       : Get.put(AuthController(), permanent: true);
   final BranchController _branchController = Get.put(BranchController());
+  final PromotionController _promotionController = Get.put(PromotionController());
+  final NotificationController _notificationController = Get.put(NotificationController());
 
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _authController.refreshProfile();
+      _promotionController.loadPromotions();
+      _notificationController.loadNotifications();
     });
 
     return Scaffold(
@@ -35,6 +41,44 @@ class HomeView extends StatelessWidget {
           ),
         ),
         actions: [
+          // Lonceng Notifikasi In-App dengan Badge Reaktif (US-21)
+          Obx(() {
+            final unread = _notificationController.unreadCount;
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.notifications_outlined,
+                    size: 22,
+                    color: AppColors.ink,
+                  ),
+                  tooltip: 'Notifikasi',
+                  onPressed: () => Get.toNamed('/notifications'),
+                ),
+                if (unread > 0)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppColors.gold,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '$unread',
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.paper,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          }),
           IconButton(
             icon: const Icon(
               Icons.event_note_outlined,
@@ -397,6 +441,218 @@ class HomeView extends StatelessWidget {
                 );
               }),
               const SizedBox(height: 24),
+
+              // Promo Menarik Sedang Berlangsung (US-16)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'PROMO & PENAWARAN',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                  Obx(() {
+                    final count = _promotionController.activePromotions.length;
+                    return Text(
+                      '$count Promo Aktif',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.gold,
+                      ),
+                    );
+                  }),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Obx(() {
+                if (_promotionController.isLoading.value) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: CircularProgressIndicator(color: AppColors.ink),
+                    ),
+                  );
+                }
+
+                final promos = _promotionController.activePromotions;
+                if (promos.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: AppColors.hairline),
+                    ),
+                    child: const Text('Belum ada promo aktif untuk segmen Anda.'),
+                  );
+                }
+
+                return Column(
+                  children: promos.map((p) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.hairline),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.gold.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Column(
+                              children: [
+                                const Icon(
+                                  Icons.local_offer,
+                                  color: AppColors.gold,
+                                  size: 20,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${p.discountPercent}%',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.gold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        p.title,
+                                        style: GoogleFonts.playfairDisplay(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.ink,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.ink,
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                      child: Text(
+                                        p.targetTierLabel,
+                                        style: const TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.paper,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  p.description,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: AppColors.inkSoft,
+                                    height: 1.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Periode: ${p.formattedPeriod}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                );
+              }),
+              const SizedBox(height: 20),
+
+              // Banner Kritik & Saran Pelanggan (US-14)
+              InkWell(
+                onTap: () => Get.toNamed('/feedback'),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.hairline),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.chat_bubble_outline,
+                          color: AppColors.accent,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Punya Kritik atau Saran?',
+                              style: GoogleFonts.playfairDisplay(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Sampaikan pengalaman Anda untuk peningkatan kualitas layanan.',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                color: AppColors.inkSoft,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 14,
+                        color: AppColors.inkSoft,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -414,7 +670,8 @@ class HomeView extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(4),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
+          height: 84,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(4),
@@ -422,6 +679,7 @@ class HomeView extends StatelessWidget {
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 24, color: AppColors.ink),
               const SizedBox(height: 8),

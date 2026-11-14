@@ -83,6 +83,11 @@ class IndonesianDateHelper {
     return '${dayLong(date)}, ${date.day} ${monthLong(date)} ${date.year}';
   }
 
+  /// Format tanggal angka (contoh: "14 Nov 2026")
+  static String formatDateOnly(DateTime date) {
+    return '${date.day} ${monthShort(date)} ${date.year}';
+  }
+
   /// Format jam:menit (contoh: "14:00")
   static String formatTime(DateTime date) {
     final h = date.hour.toString().padLeft(2, '0');

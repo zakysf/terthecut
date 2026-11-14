@@ -10,6 +10,7 @@ import '../models/reward_redemption.dart';
 import '../services/booking_service.dart';
 import '../services/branch_service.dart';
 import '../services/loyalty_service.dart';
+import '../services/notification_service.dart';
 import 'auth_controller.dart';
 
 class BookingController extends GetxController {
@@ -323,6 +324,15 @@ class BookingController extends GetxController {
       lastCreatedBooking.value = booking;
       await loadMyBookings();
 
+      // Terbitkan notifikasi in-app ke pelanggan (US-21)
+      NotificationService().createNotification(
+        userId: customerId,
+        title: 'Reservasi Berhasil (${booking.code})',
+        message:
+            'Jadwal Anda di ${booking.branchName} (${booking.formattedTimeRange}) telah terkonfirmasi.',
+        type: 'booking',
+      );
+
       // Tampilkan dialog berhasil dengan estetika Editorial
       Get.dialog(
         Dialog(
@@ -465,6 +475,15 @@ class BookingController extends GetxController {
         try {
           await _bookingService.cancelBooking(booking: booking, reason: reason);
           await loadMyBookings();
+
+          // Terbitkan notifikasi in-app pembatalan (US-21)
+          NotificationService().createNotification(
+            userId: booking.customerId,
+            title: 'Reservasi Dibatalkan',
+            message:
+                'Reservasi ${booking.code} di ${booking.branchName} telah berhasil dibatalkan.',
+            type: 'booking',
+          );
           Get.snackbar(
             'Berhasil Dibatalkan',
             'Reservasi ${booking.code} telah berhasil dibatalkan.',
