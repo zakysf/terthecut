@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import '../config/supabase_config.dart';
 import '../models/reward.dart';
 import '../models/reward_redemption.dart';
@@ -81,6 +82,8 @@ class LoyaltyService {
     final redemption = RewardRedemption(
       id: redemptionId,
       customerId: profile.id,
+      customerName: profile.name,
+      customerPhone: profile.phone,
       rewardId: reward.id,
       rewardName: reward.name,
       rewardDescription: reward.description,
@@ -164,7 +167,11 @@ class LoyaltyService {
       merged[v.voucherCode] = v;
     }
     for (final v in remoteList) {
-      merged[v.voucherCode] = v;
+      if (merged[v.voucherCode]?.status == 'used') {
+        merged[v.voucherCode] = v.copyWith(status: 'used');
+      } else {
+        merged[v.voucherCode] = v;
+      }
     }
     return merged.values.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
@@ -218,23 +225,27 @@ class LoyaltyService {
 
   /// Menandai voucher telah digunakan oleh pelanggan (US-13)
   Future<bool> useVoucher(String voucherCode) async {
+    final cleanCode = voucherCode.trim().toUpperCase();
+    if (cleanCode.isEmpty) return false;
+
     final client = SupabaseConfig.client;
-    final now = DateTime.now();
 
     if (client != null && SupabaseConfig.isConfigured) {
       try {
-        await client.from('reward_redemptions').update({
-          'status': 'used',
-          'used_at': now.toIso8601String(),
-        }).eq('voucher_code', voucherCode);
-      } catch (_) {}
+        await client
+            .from('reward_redemptions')
+            .update({'status': 'used'})
+            .eq('voucher_code', cleanCode);
+      } catch (e) {
+        if (kDebugMode) {
+          print('Supabase update voucher error: $e');
+        }
+      }
     }
 
-    final index = _mockVouchers.indexWhere((v) => v.voucherCode == voucherCode);
+    final index = _mockVouchers.indexWhere((v) => v.voucherCode.toUpperCase() == cleanCode);
     if (index != -1) {
-      _mockVouchers[index] = _mockVouchers[index].copyWith(
-        status: 'used',
-      );
+      _mockVouchers[index] = _mockVouchers[index].copyWith(status: 'used');
     }
     return true;
   }

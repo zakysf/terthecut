@@ -33,19 +33,24 @@ class MyVouchersView extends StatelessWidget {
               letterSpacing: 2.0,
             ),
           ),
-          bottom: TabBar(
-            labelColor: AppColors.ink,
-            unselectedLabelColor: AppColors.inkSoft,
-            indicatorColor: AppColors.gold,
-            indicatorWeight: 3,
-            labelStyle: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(48),
+            child: Obx(
+              () => TabBar(
+                labelColor: AppColors.ink,
+                unselectedLabelColor: AppColors.inkSoft,
+                indicatorColor: AppColors.gold,
+                indicatorWeight: 3,
+                labelStyle: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+                tabs: [
+                  Tab(text: 'Voucher Aktif (${_controller.activeCount})'),
+                  Tab(text: 'Riwayat (${_controller.historyCount})'),
+                ],
+              ),
             ),
-            tabs: const [
-              Tab(text: 'Voucher Aktif'),
-              Tab(text: 'Riwayat'),
-            ],
           ),
         ),
         body: SafeArea(
@@ -127,16 +132,68 @@ class MyVouchersView extends StatelessWidget {
       color: AppColors.ink,
       child: ListView.builder(
         padding: const EdgeInsets.all(20),
-        itemCount: vouchers.length,
+        itemCount: vouchers.length + 1,
         itemBuilder: (context, index) {
-          final v = vouchers[index];
+          if (index == 0) {
+            return _buildOverviewBanner(vouchers.length, isActiveTab);
+          }
+          final v = vouchers[index - 1];
           return _buildVoucherCard(v, isActiveTab);
         },
       ),
     );
   }
 
+  Widget _buildOverviewBanner(int count, bool isActiveTab) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.hairline),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isActiveTab ? Icons.confirmation_num_outlined : Icons.history,
+            size: 18,
+            color: isActiveTab ? AppColors.gold : AppColors.inkSoft,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              isActiveTab ? 'Tersedia: $count Voucher Aktif' : 'Total Riwayat: $count Voucher',
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: AppColors.ink,
+              ),
+            ),
+          ),
+          if (isActiveTab) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => Get.toNamed('/rewards'),
+              child: Text(
+                '+ Tukar Lagi',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.accent,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildVoucherCard(RewardRedemption voucher, bool isActive) {
+    final bool canUse = isActive && voucher.isUsable;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
@@ -144,8 +201,9 @@ class MyVouchersView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 1. Header: Nama Reward & Status Badge
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Text(
@@ -157,13 +215,11 @@ class MyVouchersView extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: isActive
+                    color: canUse
                         ? AppColors.success.withValues(alpha: 0.1)
                         : AppColors.hairline,
                     borderRadius: BorderRadius.circular(3),
@@ -173,132 +229,128 @@ class MyVouchersView extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: isActive ? AppColors.success : AppColors.inkSoft,
+                      color: canUse ? AppColors.success : AppColors.inkSoft,
                     ),
                   ),
                 ),
               ],
             ),
-            if (voucher.rewardDescription != null) ...[
+            if (voucher.rewardDescription != null && voucher.rewardDescription!.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
                 voucher.rewardDescription!,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: AppColors.inkSoft,
-                ),
+                style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkSoft),
               ),
             ],
             const Divider(height: 24, color: AppColors.hairline),
 
-            // Kode Voucher Eksklusif
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'KODE VOUCHER',
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.0,
-                        color: AppColors.inkSoft,
-                      ),
+            // 2. Kode Voucher Box: Desain Anti-Overflow
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.paper,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: AppColors.hairline),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'KODE VOUCHER',
+                          style: GoogleFonts.inter(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.0,
+                            color: AppColors.inkSoft,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            voucher.voucherCode,
+                            style: const TextStyle(
+                              fontFamily: 'Playfair Display',
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.5,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      voucher.voucherCode,
-                      style: const TextStyle(
-                        fontFamily: 'Playfair Display',
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2.0,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                  ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 16, color: AppColors.inkSoft),
+                    tooltip: 'Salin Kode',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: voucher.voucherCode));
+                      Get.snackbar(
+                        'Kode Disalin',
+                        'Kode voucher ${voucher.voucherCode} telah disalin.',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: AppColors.ink,
+                        colorText: AppColors.paper,
+                        duration: const Duration(seconds: 2),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            // 3. Tombol Utama "GUNAKAN DI KASIR" (Hanya untuk Voucher Aktif)
+            if (canUse) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.check_circle_outline, size: 15),
+                  label: const Text(
+                    'GUNAKAN DI KASIR',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.ink,
+                    foregroundColor: AppColors.paper,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onPressed: () => _controller.useVoucher(voucher),
                 ),
-                if (isActive)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+              ),
+            ],
+
+            const SizedBox(height: 12),
+
+            // 4. Footer: Masa Berlaku & Link Reservasi (Anti-Overflow)
+            Row(
+              children: [
+                Expanded(
+                  child: Row(
                     children: [
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.copy, size: 13),
-                        label: const Text(
-                          'SALIN',
-                          style: TextStyle(fontSize: 10),
+                      const Icon(Icons.access_time, size: 13, color: AppColors.inkSoft),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          's.d. ${voucher.formattedExpiry}',
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkSoft),
                         ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                        ),
-                        onPressed: () {
-                          Clipboard.setData(
-                            ClipboardData(text: voucher.voucherCode),
-                          );
-                          Get.snackbar(
-                            'Kode Disalin',
-                            'Kode voucher ${voucher.voucherCode} telah disalin.',
-                            snackPosition: SnackPosition.BOTTOM,
-                            backgroundColor: AppColors.ink,
-                            colorText: AppColors.paper,
-                            duration: const Duration(seconds: 2),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.check_circle_outline, size: 14),
-                        label: const Text(
-                          'GUNAKAN',
-                          style: TextStyle(fontSize: 10),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.ink,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                        ),
-                        onPressed: () => _controller.useVoucher(voucher),
                       ),
                     ],
                   ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.access_time,
-                      size: 13,
-                      color: AppColors.inkSoft,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Berlaku s.d. ${voucher.formattedExpiry}',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: AppColors.inkSoft,
-                      ),
-                    ),
-                  ],
                 ),
-                if (isActive)
+                if (canUse)
                   GestureDetector(
-                    onTap: () {
-                      Get.toNamed('/booking-wizard');
-                    },
+                    onTap: () => Get.toNamed('/booking-wizard'),
                     child: Text(
-                      'Pakai Saat Reservasi ->',
+                      'Pakai Reservasi ->',
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,

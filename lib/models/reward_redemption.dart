@@ -3,6 +3,8 @@ import '../config/date_format_helper.dart';
 class RewardRedemption {
   final String id;
   final String customerId;
+  final String? customerName;
+  final String? customerPhone;
   final String rewardId;
   final String rewardName;
   final String? rewardDescription;
@@ -15,6 +17,8 @@ class RewardRedemption {
   RewardRedemption({
     required this.id,
     required this.customerId,
+    this.customerName,
+    this.customerPhone,
     required this.rewardId,
     required this.rewardName,
     this.rewardDescription,
@@ -49,6 +53,10 @@ class RewardRedemption {
     return RewardRedemption(
       id: json['id']?.toString() ?? '',
       customerId: json['customer_id']?.toString() ?? '',
+      customerName: json['customer_name']?.toString() ??
+          (json['profiles'] is Map ? json['profiles']['name']?.toString() : null),
+      customerPhone: json['customer_phone']?.toString() ??
+          (json['profiles'] is Map ? json['profiles']['phone']?.toString() : null),
       rewardId: json['reward_id']?.toString() ?? '',
       rewardName: json['reward_name']?.toString() ?? (json['rewards']?['name']?.toString() ?? 'Voucher Reward'),
       rewardDescription: json['reward_description']?.toString() ?? (json['rewards']?['description']?.toString()),
@@ -64,6 +72,8 @@ class RewardRedemption {
     return {
       'id': id,
       'customer_id': customerId,
+      'customer_name': customerName,
+      'customer_phone': customerPhone,
       'reward_id': rewardId,
       'reward_name': rewardName,
       'reward_description': rewardDescription,
@@ -78,6 +88,8 @@ class RewardRedemption {
   RewardRedemption copyWith({
     String? id,
     String? customerId,
+    String? customerName,
+    String? customerPhone,
     String? rewardId,
     String? rewardName,
     String? rewardDescription,
@@ -90,6 +102,8 @@ class RewardRedemption {
     return RewardRedemption(
       id: id ?? this.id,
       customerId: customerId ?? this.customerId,
+      customerName: customerName ?? this.customerName,
+      customerPhone: customerPhone ?? this.customerPhone,
       rewardId: rewardId ?? this.rewardId,
       rewardName: rewardName ?? this.rewardName,
       rewardDescription: rewardDescription ?? this.rewardDescription,

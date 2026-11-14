@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import '../config/theme.dart';
 import '../models/reward.dart';
 import '../models/reward_redemption.dart';
@@ -16,12 +17,16 @@ class LoyaltyController extends GetxController {
 
   final RxBool isLoading = false.obs;
   final RxBool isRedeeming = false.obs;
+  final RxBool isUsingVoucher = false.obs;
 
   List<RewardRedemption> get activeVouchers =>
       myVouchers.where((v) => v.isUsable).toList();
 
   List<RewardRedemption> get historyVouchers =>
       myVouchers.where((v) => !v.isUsable).toList();
+
+  int get activeCount => activeVouchers.length;
+  int get historyCount => historyVouchers.length;
 
   @override
   void onInit() {
@@ -41,8 +46,12 @@ class LoyaltyController extends GetxController {
     isLoading.value = true;
     try {
       final fetchedRewards = await _loyaltyService.fetchRewards();
-      final fetchedVouchers = await _loyaltyService.fetchCustomerVouchers(customerId);
-      final fetchedLedger = await _loyaltyService.fetchCustomerPointLedger(customerId);
+      final fetchedVouchers = await _loyaltyService.fetchCustomerVouchers(
+        customerId,
+      );
+      final fetchedLedger = await _loyaltyService.fetchCustomerPointLedger(
+        customerId,
+      );
 
       rewards.assignAll(fetchedRewards);
       myVouchers.assignAll(fetchedVouchers);
@@ -109,7 +118,9 @@ class LoyaltyController extends GetxController {
           Get.dialog(
             Dialog(
               backgroundColor: AppColors.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
@@ -121,7 +132,11 @@ class LoyaltyController extends GetxController {
                         color: AppColors.gold.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.card_giftcard, color: AppColors.gold, size: 36),
+                      child: const Icon(
+                        Icons.card_giftcard,
+                        color: AppColors.gold,
+                        size: 36,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -136,7 +151,10 @@ class LoyaltyController extends GetxController {
                     ),
                     const SizedBox(height: 16),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.ink,
                         borderRadius: BorderRadius.circular(4),
@@ -155,7 +173,10 @@ class LoyaltyController extends GetxController {
                     const SizedBox(height: 12),
                     Text(
                       'Berlaku hingga: ${redemption.formattedExpiry}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.inkSoft),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.inkSoft,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
@@ -176,7 +197,10 @@ class LoyaltyController extends GetxController {
             ),
           );
         } catch (e) {
-          Get.snackbar('Penukaran Gagal', e.toString().replaceAll('Exception: ', ''));
+          Get.snackbar(
+            'Penukaran Gagal',
+            e.toString().replaceAll('Exception: ', ''),
+          );
         } finally {
           isRedeeming.value = false;
         }
@@ -186,32 +210,197 @@ class LoyaltyController extends GetxController {
 
   /// Menandai voucher telah digunakan saat pembayaran di kasir
   Future<void> useVoucher(RewardRedemption voucher) async {
-    Get.defaultDialog(
-      title: 'Gunakan Voucher?',
-      middleText:
-          'Apakah Anda ingin menggunakan voucher "${voucher.rewardName}" (${voucher.voucherCode}) sekarang?\n\nVoucher yang telah digunakan tidak dapat dibatalkan.',
-      textConfirm: 'Ya, Gunakan',
-      textCancel: 'Batal',
-      confirmTextColor: AppColors.paper,
-      buttonColor: AppColors.success,
-      onConfirm: () async {
-        Get.back();
-        try {
-          await _loyaltyService.useVoucher(voucher.voucherCode);
-          await loadLoyaltyData();
-          Get.snackbar(
-            'Voucher Digunakan',
-            'Voucher ${voucher.voucherCode} telah berhasil ditandai sebagai terpakai.',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: AppColors.ink,
-            colorText: AppColors.paper,
-            duration: const Duration(seconds: 3),
-          );
-        } catch (e) {
-          Get.snackbar('Gagal', e.toString().replaceAll('Exception: ', ''));
-        }
-      },
+    Get.dialog(
+      Dialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'KASIR WALK-IN & PEMBAYARAN',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: AppColors.accent,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'TUNJUKKAN KE KASIR',
+                style: TextStyle(
+                  fontFamily: 'Playfair Display',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                voucher.rewardName,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.inkSoft,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.ink,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: AppColors.gold.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      voucher.voucherCode,
+                      style: const TextStyle(
+                        fontFamily: 'Playfair Display',
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 3.5,
+                        color: AppColors.paper,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Berlaku s.d. ${voucher.formattedExpiry}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.paper.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.paper,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.hairline),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: AppColors.accent),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Tunjukkan kode ini kepada kasir saat pembayaran. Tekan "Konfirmasi Pemakaian" bersama kasir.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.4,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.check_circle_outline, size: 16),
+                  label: const Text(
+                    'KONFIRMASI PEMAKAIAN',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.ink,
+                    foregroundColor: AppColors.paper,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () {
+                    Get.back();
+                    confirmUseVoucher(voucher);
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Get.back(),
+                child: const Text(
+                  'TUTUP / BATAL',
+                  style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
-}
 
+  /// Eksekusi pemakaian voucher dengan Clean Code & Optimistic UI
+  Future<void> confirmUseVoucher(RewardRedemption voucher) async {
+    if (!voucher.isUsable) {
+      Get.snackbar(
+        'Voucher Tidak Aktif',
+        'Voucher ini sudah pernah digunakan atau telah melewati batas kedaluwarsa.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    if (isUsingVoucher.value) return;
+    isUsingVoucher.value = true;
+
+    try {
+      // 1. Optimistic UI update: langsung ubah status lokal agar UI berganti seketika
+      final cleanCode = voucher.voucherCode.trim().toUpperCase();
+      final idx = myVouchers.indexWhere(
+        (v) => v.voucherCode.trim().toUpperCase() == cleanCode,
+      );
+      if (idx != -1) {
+        myVouchers[idx] = myVouchers[idx].copyWith(status: 'used');
+        myVouchers.refresh();
+      }
+
+      // 2. Kirim update ke service database
+      await _loyaltyService.useVoucher(voucher.voucherCode);
+
+      // 3. Muat ulang data terbaru dari backend
+      await loadLoyaltyData();
+
+      Get.snackbar(
+        'Voucher Berhasil Digunakan',
+        'Voucher ${voucher.voucherCode} telah berhasil ditandai sebagai terpakai.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: AppColors.ink,
+        colorText: AppColors.paper,
+        duration: const Duration(seconds: 3),
+      );
+    } catch (e) {
+      Get.snackbar('Gagal', e.toString().replaceAll('Exception: ', ''));
+    } finally {
+      isUsingVoucher.value = false;
+    }
+  }
+}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+
 import '../../config/theme.dart';
 import '../../config/date_format_helper.dart';
 import '../../controllers/auth_controller.dart';
@@ -103,7 +104,10 @@ class AdminDashboardView extends StatelessWidget {
                     Obx(() {
                       return Text(
                         'Total: ${_adminController.filteredBookings.length} Jadwal',
-                        style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkSoft),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: AppColors.inkSoft,
+                        ),
                       );
                     }),
                   ],
@@ -132,17 +136,27 @@ class AdminDashboardView extends StatelessWidget {
                       alignment: Alignment.center,
                       child: Column(
                         children: [
-                          const Icon(Icons.event_available, size: 40, color: AppColors.inkSoft),
+                          const Icon(
+                            Icons.event_available,
+                            size: 40,
+                            color: AppColors.inkSoft,
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             'Tidak Ada Booking Pada Kriteria Ini',
-                            style: GoogleFonts.playfairDisplay(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Silakan pilih tanggal lain atau cabang lain untuk memantau jadwal reservasi.',
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkSoft),
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: AppColors.inkSoft,
+                            ),
                           ),
                         ],
                       ),
@@ -150,7 +164,9 @@ class AdminDashboardView extends StatelessWidget {
                   }
 
                   return Column(
-                    children: bookings.map((b) => _buildBookingCashierCard(b)).toList(),
+                    children: bookings
+                        .map((b) => _buildBookingCashierCard(b))
+                        .toList(),
                   );
                 }),
               ],
@@ -195,7 +211,10 @@ class AdminDashboardView extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.accent,
                     borderRadius: BorderRadius.circular(2),
@@ -246,7 +265,10 @@ class AdminDashboardView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('FILTER CABANG (11 CABANG)', style: Theme.of(Get.context!).textTheme.labelSmall),
+          Text(
+            'FILTER CABANG (11 CABANG)',
+            style: Theme.of(Get.context!).textTheme.labelSmall,
+          ),
           const SizedBox(height: 8),
 
           // Dropdown Cabang
@@ -264,7 +286,10 @@ class AdminDashboardView extends StatelessWidget {
                 child: DropdownButton<String>(
                   value: selected,
                   isExpanded: true,
-                  icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.ink),
+                  icon: const Icon(
+                    Icons.keyboard_arrow_down,
+                    color: AppColors.ink,
+                  ),
                   items: [
                     const DropdownMenuItem(
                       value: 'all',
@@ -286,21 +311,30 @@ class AdminDashboardView extends StatelessWidget {
           }),
 
           const SizedBox(height: 14),
-          Text('TANGGAL JADWAL', style: Theme.of(Get.context!).textTheme.labelSmall),
+          Text(
+            'TANGGAL JADWAL',
+            style: Theme.of(Get.context!).textTheme.labelSmall,
+          ),
           const SizedBox(height: 8),
 
           // Tombol Pemilih Tanggal Cepat
           Obx(() {
             final date = _adminController.selectedDate.value;
             final now = DateTime.now();
-            final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+            final isToday =
+                date.year == now.year &&
+                date.month == now.month &&
+                date.day == now.day;
             final dateLabel = IndonesianDateHelper.formatFull(date);
 
             return Row(
               children: [
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.paper,
                       borderRadius: BorderRadius.circular(4),
@@ -308,12 +342,19 @@ class AdminDashboardView extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_today, size: 14, color: AppColors.accent),
+                        const Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: AppColors.accent,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             '$dateLabel ${isToday ? "(Hari Ini)" : ""}',
-                            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -323,13 +364,19 @@ class AdminDashboardView extends StatelessWidget {
                 const SizedBox(width: 8),
                 IconButton.filled(
                   style: IconButton.styleFrom(backgroundColor: AppColors.ink),
-                  icon: const Icon(Icons.date_range, color: AppColors.paper, size: 18),
+                  icon: const Icon(
+                    Icons.date_range,
+                    color: AppColors.paper,
+                    size: 18,
+                  ),
                   tooltip: 'Pilih Tanggal',
                   onPressed: () async {
                     final picked = await showDatePicker(
                       context: Get.context!,
                       initialDate: _adminController.selectedDate.value,
-                      firstDate: DateTime.now().subtract(const Duration(days: 7)),
+                      firstDate: DateTime.now().subtract(
+                        const Duration(days: 7),
+                      ),
                       lastDate: DateTime.now().add(const Duration(days: 14)),
                     );
                     if (picked != null) {
@@ -365,8 +412,16 @@ class AdminDashboardView extends StatelessWidget {
             Row(
               children: [
                 _buildStatItem('TOTAL RESERVASI', '$total', AppColors.ink),
-                _buildStatItem('MENUNGGU / AKTIF', '$pending', AppColors.accent),
-                _buildStatItem('SELESAI (KASIR)', '$completed', AppColors.success),
+                _buildStatItem(
+                  'MENUNGGU / AKTIF',
+                  '$pending',
+                  AppColors.accent,
+                ),
+                _buildStatItem(
+                  'SELESAI (KASIR)',
+                  '$completed',
+                  AppColors.success,
+                ),
               ],
             ),
             const Divider(height: 24, color: AppColors.hairline),
@@ -376,7 +431,10 @@ class AdminDashboardView extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('OMSET TERBUKU (KASIR)', style: Theme.of(Get.context!).textTheme.labelSmall),
+                    Text(
+                      'OMSET TERBUKU (KASIR)',
+                      style: Theme.of(Get.context!).textTheme.labelSmall,
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       _currencyFormat.format(revenue),
@@ -391,7 +449,10 @@ class AdminDashboardView extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('POIN DIBAGIKAN', style: Theme.of(Get.context!).textTheme.labelSmall),
+                    Text(
+                      'POIN DIBAGIKAN',
+                      style: Theme.of(Get.context!).textTheme.labelSmall,
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       '+$points Pts',
@@ -459,7 +520,10 @@ class AdminDashboardView extends StatelessWidget {
               child: GestureDetector(
                 onTap: () => _adminController.setStatusFilter(f['id']!),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected ? AppColors.ink : AppColors.surface,
                     borderRadius: BorderRadius.circular(20),
@@ -471,7 +535,9 @@ class AdminDashboardView extends StatelessWidget {
                     f['label']!,
                     style: GoogleFonts.inter(
                       fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.w500,
                       color: isSelected ? AppColors.paper : AppColors.ink,
                     ),
                   ),
@@ -523,7 +589,11 @@ class AdminDashboardView extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.confirmation_number_outlined, size: 16, color: AppColors.inkSoft),
+                    const Icon(
+                      Icons.confirmation_number_outlined,
+                      size: 16,
+                      color: AppColors.inkSoft,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       booking.code,
@@ -537,7 +607,10 @@ class AdminDashboardView extends StatelessWidget {
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: statusBgColor,
                     borderRadius: BorderRadius.circular(3),
@@ -568,11 +641,15 @@ class AdminDashboardView extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (booking.customerPhone != null && booking.customerPhone!.isNotEmpty) ...[
+                if (booking.customerPhone != null &&
+                    booking.customerPhone!.isNotEmpty) ...[
                   const SizedBox(width: 8),
                   Text(
                     '(${booking.customerPhone})',
-                    style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkSoft),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppColors.inkSoft,
+                    ),
                   ),
                 ],
               ],
@@ -582,7 +659,11 @@ class AdminDashboardView extends StatelessWidget {
             // Rincian Layanan & Kapster
             Text(
               '${booking.serviceName} (${booking.durationHours} Jam)',
-              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink),
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
@@ -605,30 +686,45 @@ class AdminDashboardView extends StatelessWidget {
               children: [
                 Text(
                   '${_currencyFormat.format(booking.servicePrice)} • +${booking.servicePoints} Poin',
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.ink),
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.ink,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 14),
 
             // Tombol Aksi Kasir: cukup menandai selesai pengerjaan (US-19)
-            if (booking.status == 'confirmed' || booking.status == 'arrived') ...[
+            if (booking.status == 'confirmed' ||
+                booking.status == 'arrived') ...[
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.check_circle_outline, size: 16),
-                  label: const Text('SELESAIKAN (KASIR)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+                  label: const Text(
+                    'SELESAIKAN (KASIR)',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                  ),
                   onPressed: () => _adminController.completeBooking(booking),
                 ),
               ),
             ] else if (booking.status == 'completed') ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.success.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppColors.success.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -637,7 +733,10 @@ class AdminDashboardView extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Layanan selesai. Transaksi dibukukan & +${booking.servicePoints} poin loyalitas berhasil dikreditkan ke member.',
-                        style: GoogleFonts.inter(fontSize: 11, color: AppColors.success),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: AppColors.success,
+                        ),
                       ),
                     ),
                   ],
