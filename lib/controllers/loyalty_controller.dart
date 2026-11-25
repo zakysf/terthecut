@@ -3,6 +3,7 @@ import '../models/reward.dart';
 import '../models/reward_redemption.dart';
 import '../models/point_ledger.dart';
 import '../services/loyalty_service.dart';
+import '../services/notification_service.dart';
 import 'auth_controller.dart';
 
 /// Singleton controller sistem loyalitas, reward, dompet voucher, dan mutasi poin.
@@ -89,6 +90,14 @@ class LoyaltyController extends ChangeNotifier {
         pointsBalance: profile.pointsBalance - reward.pointsCost,
       );
       authController.updateCurrentProfile(updatedProfile);
+
+      await NotificationService().createNotification(
+        userId: profile.id,
+        title: 'Penukaran Reward Berhasil',
+        message:
+            'Voucher "${reward.name}" berhasil ditukarkan (${reward.pointsCost} Pts).',
+        type: 'loyalty',
+      );
 
       await loadLoyaltyData();
       return redemption;

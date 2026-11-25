@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../config/theme.dart';
-import '../../config/ui_helpers.dart';
 import '../../controllers/booking_controller.dart';
 import '../../models/booking.dart';
 import 'booking_detail_view.dart';
@@ -31,46 +30,6 @@ class _MyBookingsViewState extends State<MyBookingsView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _controller.loadMyBookings();
     });
-  }
-
-  Future<void> _handleCancelBooking(Booking booking) async {
-    if (!booking.canCancel) {
-      await showAppInfoDialog(
-        context,
-        title: 'Pembatalan Ditolak',
-        message:
-            'Sesuai ketentuan, pembatalan jadwal hanya dapat dilakukan minimal 2 jam (120 menit) sebelum waktu reservasi dimulai.',
-      );
-      return;
-    }
-
-    final confirmed = await showAppConfirmDialog(
-      context,
-      title: 'Batalkan Reservasi?',
-      message:
-          'Apakah Anda yakin ingin membatalkan jadwal di ${booking.branchName} pada ${booking.formattedTimeRange}?',
-      confirmLabel: 'Ya, Batalkan',
-      cancelLabel: 'Tidak',
-      confirmColor: AppColors.danger,
-    );
-    if (!confirmed) return;
-
-    final ok = await _controller.executeCancelBooking(booking);
-    if (!mounted) return;
-    if (ok) {
-      showAppSnackBar(
-        context,
-        'Reservasi ${booking.code} telah berhasil dibatalkan.',
-        title: 'Berhasil Dibatalkan',
-      );
-    } else {
-      showAppSnackBar(
-        context,
-        _controller.errorMessage,
-        title: 'Gagal Membatalkan',
-        backgroundColor: AppColors.danger,
-      );
-    }
   }
 
   @override
@@ -395,43 +354,15 @@ class _MyBookingsViewState extends State<MyBookingsView> {
                       ),
                     ],
                   ),
-                  Row(
-                    children: [
-                      // Tombol Batalkan Booking (US-10: minimal 2 jam sebelumnya)
-                      if (isUpcoming && booking.status == 'confirmed') ...[
-                        OutlinedButton(
-                          onPressed: booking.canCancel
-                              ? () => _handleCancelBooking(booking)
-                              : () => showAppSnackBar(
-                                    context,
-                                    'Sesuai ketentuan, pembatalan hanya dapat dilakukan minimal 2 jam sebelum jadwal dimulai.',
-                                    title: 'Pembatalan Ditolak',
-                                  ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: booking.canCancel ? AppColors.danger : AppColors.inkSoft,
-                            side: BorderSide(
-                              color: booking.canCancel ? AppColors.danger : AppColors.hairline,
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          ),
-                          child: Text(
-                            booking.canCancel ? 'BATALKAN' : 'TIDAK DAPAT BATAL',
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      ElevatedButton(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => BookingDetailView(booking: booking)),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        ),
-                        child: const Text('TIKET', style: TextStyle(fontSize: 10)),
-                      ),
-                    ],
+                  ElevatedButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => BookingDetailView(booking: booking)),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    ),
+                    child: const Text('TIKET', style: TextStyle(fontSize: 10)),
                   ),
                 ],
               ),

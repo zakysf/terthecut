@@ -12,7 +12,8 @@ class HairstyleController extends ChangeNotifier {
   List<Hairstyle> _hairstyles = [];
 
   bool get isLoading => _isLoading;
-  List<Hairstyle> get hairstyles => _hairstyles;
+  List<Hairstyle> get hairstyles =>
+      HairstyleService.sortWithFavoritesFirst(_hairstyles);
 
   final _hairstyleService = HairstyleService();
 
@@ -22,7 +23,7 @@ class HairstyleController extends ChangeNotifier {
       notifyListeners();
 
       final data = await _hairstyleService.fetchHairstyles();
-      _hairstyles = data;
+      _hairstyles = HairstyleService.sortWithFavoritesFirst(data);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -36,6 +37,7 @@ class HairstyleController extends ChangeNotifier {
     final index = _hairstyles.indexWhere((h) => h.id == item.id);
     if (index != -1) {
       _hairstyles[index].isFavorite = newStatus;
+      _hairstyles = HairstyleService.sortWithFavoritesFirst(_hairstyles);
       notifyListeners();
     }
   }

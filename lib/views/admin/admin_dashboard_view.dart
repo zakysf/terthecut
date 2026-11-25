@@ -104,6 +104,37 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     }
   }
 
+  Future<void> _handleCancelBooking(Booking booking) async {
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: 'Batalkan Reservasi Pelanggan?',
+      message:
+          'Batalkan jadwal ${booking.serviceName} atas nama ${booking.customerName} (${booking.formattedTimeRange})? Pelanggan akan menerima notifikasi pembatalan.',
+      confirmLabel: 'Ya, Batalkan',
+      cancelLabel: 'Tidak',
+      confirmColor: AppColors.danger,
+    );
+    if (!confirmed) return;
+
+    final ok = await _adminController.executeCancelBooking(booking);
+    if (!mounted) return;
+    if (ok) {
+      showAppSnackBar(
+        context,
+        'Reservasi ${booking.code} telah dibatalkan oleh admin.',
+        title: 'Reservasi Dibatalkan',
+        backgroundColor: AppColors.danger,
+      );
+    } else {
+      showAppSnackBar(
+        context,
+        _adminController.errorMessage,
+        title: 'Gagal Membatalkan',
+        backgroundColor: AppColors.danger,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -660,6 +691,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       {'id': 'all', 'label': 'Semua'},
       {'id': 'confirmed', 'label': 'Menunggu / Aktif'},
       {'id': 'completed', 'label': 'Selesai'},
+      {'id': 'cancelled', 'label': 'Dibatalkan'},
     ];
 
     return ListenableBuilder(
@@ -953,24 +985,54 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               ],
             ),
 
-            // Baris 5: Tombol Aksi Kasir (Hanya jika belum selesai)
+            // Baris 5: Tombol Aksi Kasir & Pembatalan Admin (Hanya jika belum selesai/dibatalkan)
             if (booking.status == 'confirmed' ||
                 booking.status == 'arrived') ...[
               const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.check_circle_outline, size: 16),
-                  label: const Text(
-                    'SELESAIKAN (KASIR)',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.cancel_outlined, size: 16),
+                      label: const Text(
+                        'BATALKAN',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.danger,
+                        side: const BorderSide(color: AppColors.danger),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => _handleCancelBooking(booking),
+                    ),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.check_circle_outline, size: 16),
+                      label: const Text(
+                        'SELESAIKAN (KASIR)',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => _handleCompleteBooking(booking),
+                    ),
                   ),
-                  onPressed: () => _handleCompleteBooking(booking),
-                ),
+                ],
               ),
             ],
           ],

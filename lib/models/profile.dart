@@ -46,8 +46,8 @@ class Profile {
   bool get isAdmin => role == 'admin';
 
   String get tier {
-    if (lifetimePoints >= 300) return 'Gold';
-    if (lifetimePoints >= 100) return 'Silver';
+    if (lifetimePoints > 300) return 'Gold';
+    if (lifetimePoints >= 101) return 'Silver';
     return 'Bronze';
   }
 

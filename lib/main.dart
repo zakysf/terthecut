@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'config/supabase_config.dart';
 import 'config/theme.dart';
 import 'controllers/auth_controller.dart';
+import 'services/notification_service.dart';
 import 'views/admin/admin_dashboard_view.dart';
 import 'views/auth/login_view.dart';
 import 'views/customer_root_view.dart';
@@ -14,6 +15,7 @@ void main() async {
     await initializeDateFormatting('id_ID', null);
   } catch (_) {}
   await SupabaseConfig.initialize();
+  await NotificationService().init();
   runApp(const TerTheCutApp());
 }
 

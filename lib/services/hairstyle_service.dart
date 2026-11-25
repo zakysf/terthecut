@@ -1,7 +1,12 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../config/supabase_config.dart';
 import '../models/hairstyle.dart';
 
 class HairstyleService {
+  static const String _favPrefKey = 'favorite_hairstyle_ids';
+  static final Set<String> _memoryFavoriteIds = <String>{};
+
   // 8 Koleksi Gaya Rambut Populer dengan Gambar Berkualitas Tinggi dari Internet
   static final List<Hairstyle> _seedHairstyles = [
     Hairstyle(
@@ -54,6 +59,56 @@ class HairstyleService {
     ),
   ];
 
+  /// Mengurutkan daftar gaya rambut dengan item favorit berada paling atas.
+  static List<Hairstyle> sortWithFavoritesFirst(List<Hairstyle> items) {
+    final favorites = items.where((h) => h.isFavorite).toList();
+    final others = items.where((h) => !h.isFavorite).toList();
+    return [...favorites, ...others];
+  }
+
+  Future<Set<String>> _loadFavoriteIds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getStringList(_favPrefKey);
+      if (saved != null) {
+        _memoryFavoriteIds
+          ..clear()
+          ..addAll(saved);
+        return saved.toSet();
+      }
+      return <String>{};
+    } catch (_) {
+      return Set<String>.from(_memoryFavoriteIds);
+    }
+  }
+
+  Future<void> _saveFavoriteIds(Set<String> ids) async {
+    _memoryFavoriteIds
+      ..clear()
+      ..addAll(ids);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_favPrefKey, ids.toList());
+    } catch (_) {}
+  }
+
+  Future<List<Hairstyle>> _applyFavoritesAndSort(List<Hairstyle> items) async {
+    final favIds = await _loadFavoriteIds();
+    final hydrated = items
+        .map(
+          (item) => Hairstyle(
+            id: item.id,
+            name: item.name,
+            description: item.description,
+            photoUrl: item.photoUrl,
+            isActive: item.isActive,
+            isFavorite: favIds.contains(item.id),
+          ),
+        )
+        .toList();
+    return sortWithFavoritesFirst(hydrated);
+  }
+
   Future<List<Hairstyle>> fetchHairstyles() async {
     final client = SupabaseConfig.client;
     if (client != null && SupabaseConfig.isConfigured) {
@@ -62,23 +117,28 @@ class HairstyleService {
         final list = (data as List).map((e) => Hairstyle.fromJson(e)).toList();
         // Jika di Supabase tabel hairstyles masih kosong, gunakan koleksi gambar internet
         if (list.isEmpty) {
-          return _seedHairstyles;
+          return await _applyFavoritesAndSort(_seedHairstyles);
         }
-        return list;
+        return await _applyFavoritesAndSort(list);
       } catch (e) {
-        return _seedHairstyles;
+        return _applyFavoritesAndSort(_seedHairstyles);
       }
     }
     await Future.delayed(const Duration(milliseconds: 300));
-    return _seedHairstyles;
+    return _applyFavoritesAndSort(_seedHairstyles);
   }
 
   Future<bool> toggleFavorite(String hairstyleId) async {
-    final item = _seedHairstyles.firstWhere(
-      (element) => element.id == hairstyleId,
-      orElse: () => Hairstyle(id: hairstyleId, name: ''),
-    );
-    item.isFavorite = !item.isFavorite;
-    return item.isFavorite;
+    final favIds = await _loadFavoriteIds();
+    final bool nowFavorite;
+    if (favIds.contains(hairstyleId)) {
+      favIds.remove(hairstyleId);
+      nowFavorite = false;
+    } else {
+      favIds.add(hairstyleId);
+      nowFavorite = true;
+    }
+    await _saveFavoriteIds(favIds);
+    return nowFavorite;
   }
 }

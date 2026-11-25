@@ -453,12 +453,13 @@ class BookingService {
     return newBooking;
   }
 
-  /// Membatalkan booking dengan verifikasi minimal 2 jam (US-10)
+  /// Membatalkan booking (US-10). Admin dapat membatalkan tanpa batas waktu 2 jam via [bypassTimeLimit].
   Future<bool> cancelBooking({
     required Booking booking,
     required String reason,
+    bool bypassTimeLimit = false,
   }) async {
-    if (!booking.canCancel) {
+    if (!bypassTimeLimit && !booking.canCancel) {
       throw Exception('Pembatalan hanya dapat dilakukan minimal 2 jam sebelum waktu reservasi.');
     }
 

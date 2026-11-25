@@ -60,17 +60,18 @@ class _PointLedgerViewState extends State<PointLedgerView> {
                   final lifetime = profile?.lifetimePoints ?? 0;
                   final tier = profile?.tier ?? 'Bronze';
 
-                  // Tier thresholds
-                  int nextTierPoints = 100;
+                  // Ketentuan Tier (berdasarkan Poin Seumur Hidup):
+                  // 0 - 100: Bronze | 101 - 300: Silver | > 300 (301+): Gold
+                  int nextTierPoints = 101;
                   String nextTierName = 'Silver';
-                  double progress = (points / 100).clamp(0.0, 1.0);
+                  double progress = (lifetime / 101).clamp(0.0, 1.0);
 
                   if (tier == 'Silver') {
-                    nextTierPoints = 300;
+                    nextTierPoints = 301;
                     nextTierName = 'Gold';
-                    progress = ((points - 100) / 200).clamp(0.0, 1.0);
+                    progress = ((lifetime - 100) / 201).clamp(0.0, 1.0);
                   } else if (tier == 'Gold') {
-                    nextTierPoints = 300;
+                    nextTierPoints = 301;
                     nextTierName = 'Maksimal';
                     progress = 1.0;
                   }
@@ -179,15 +180,20 @@ class _PointLedgerViewState extends State<PointLedgerView> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              tier == 'Gold'
-                                  ? 'Tingkat Tier Tertinggi'
-                                  : 'Menuju $nextTierName ($points/$nextTierPoints Pts)',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: AppColors.paper.withValues(alpha: 0.8),
+                            Expanded(
+                              child: Text(
+                                tier == 'Gold'
+                                    ? 'Tingkat Tier Tertinggi ($lifetime Pts Seumur Hidup)'
+                                    : 'Menuju $nextTierName ($lifetime/$nextTierPoints Pts Seumur Hidup)',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: AppColors.paper.withValues(alpha: 0.8),
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Text(
                               '${(progress * 100).toInt()}%',
                               style: GoogleFonts.inter(

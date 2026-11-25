@@ -178,8 +178,8 @@ class AdminController extends ChangeNotifier {
         );
       }
 
-      // Terbitkan notifikasi in-app ke pelanggan (US-21)
-      _notificationService.createNotification(
+      // Terbitkan notifikasi in-app & perangkat ke pelanggan (US-21 & Modul 7)
+      await _notificationService.createNotification(
         userId: booking.customerId,
         title: 'Layanan Selesai (+${booking.servicePoints} Poin)',
         message:
@@ -191,6 +191,40 @@ class AdminController extends ChangeNotifier {
       return true;
     } catch (e) {
       errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Admin membatalkan reservasi pelanggan (hanya tersedia di panel admin).
+  Future<bool> executeCancelBooking(
+    Booking booking, {
+    String reason = 'Dibatalkan oleh admin',
+  }) async {
+    try {
+      errorMessage = '';
+      await _bookingService.cancelBooking(
+        booking: booking,
+        reason: reason,
+        bypassTimeLimit: true,
+      );
+
+      await _notificationService.cancelScheduledNotification(
+        booking.code.hashCode.abs() % 1000000,
+      );
+
+      await _notificationService.createNotification(
+        userId: booking.customerId,
+        title: 'Reservasi Dibatalkan (${booking.code})',
+        message:
+            'Reservasi Anda di ${booking.branchName} (${booking.formattedTimeRange}) telah dibatalkan oleh admin.',
+        type: 'booking',
+      );
+
+      await loadSchedule();
+      return true;
+    } catch (e) {
+      errorMessage = e.toString().replaceAll('Exception:', '').trim();
       notifyListeners();
       return false;
     }

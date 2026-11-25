@@ -42,9 +42,7 @@ class _BookingWizardViewState extends State<BookingWizardView> {
       if (_serviceController.services.isEmpty) {
         _serviceController.retrieveCatalog();
       }
-      if (_hairstyleController.hairstyles.isEmpty) {
-        _hairstyleController.retrieveHairstyles();
-      }
+      _hairstyleController.retrieveHairstyles();
     });
   }
 
@@ -1001,28 +999,82 @@ class _BookingWizardViewState extends State<BookingWizardView> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Expanded(
-                          child:
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
                               (hs.photoUrl != null && hs.photoUrl!.isNotEmpty)
-                              ? Image.network(
-                                  hs.photoUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(
-                                        color: AppColors.hairline,
-                                        child: const Icon(
-                                          Icons.broken_image,
-                                          color: AppColors.inkSoft,
-                                        ),
+                                  ? Image.network(
+                                      hs.photoUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) =>
+                                          Container(
+                                            color: AppColors.hairline,
+                                            child: const Icon(
+                                              Icons.broken_image,
+                                              color: AppColors.inkSoft,
+                                            ),
+                                          ),
+                                    )
+                                  : Container(
+                                      color: AppColors.hairline,
+                                      child: const Icon(
+                                        Icons.face,
+                                        size: 40,
+                                        color: AppColors.inkSoft,
                                       ),
-                                )
-                              : Container(
-                                  color: AppColors.hairline,
-                                  child: const Icon(
-                                    Icons.face,
-                                    size: 40,
-                                    color: AppColors.inkSoft,
+                                    ),
+                              if (hs.isFavorite)
+                                Positioned(
+                                  top: 8,
+                                  left: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.ink.withValues(alpha: 0.85),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                    child: Text(
+                                      'FAVORIT',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.6,
+                                        color: AppColors.gold,
+                                      ),
+                                    ),
                                   ),
                                 ),
+                              Positioned(
+                                top: 6,
+                                right: 6,
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      _hairstyleController.toggleFavorite(hs),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surface.withValues(
+                                        alpha: 0.9,
+                                      ),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      hs.isFavorite
+                                          ? Icons.favorite
+                                          : Icons.favorite_border,
+                                      size: 16,
+                                      color: hs.isFavorite
+                                          ? AppColors.danger
+                                          : AppColors.inkSoft,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         Padding(
                           padding: const EdgeInsets.all(10),

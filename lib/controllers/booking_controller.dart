@@ -331,14 +331,31 @@ class BookingController extends ChangeNotifier {
       lastCreatedBooking = booking;
       await loadMyBookings();
 
-      // Terbitkan notifikasi in-app ke pelanggan (US-21)
-      NotificationService().createNotification(
+      // Terbitkan notifikasi langsung ke pelanggan & jadwalkan pengingat di perangkat (Modul 7)
+      final notifService = NotificationService();
+      await notifService.createNotification(
         userId: customerId,
         title: 'Reservasi Berhasil (${booking.code})',
         message:
             'Jadwal Anda di ${booking.branchName} (${booking.formattedTimeRange}) telah terkonfirmasi.',
         type: 'booking',
       );
+
+      final minutesUntilStart = booking.startsAt.difference(DateTime.now()).inMinutes;
+      final reminderTime = minutesUntilStart > 60
+          ? booking.startsAt.subtract(const Duration(hours: 1))
+          : (minutesUntilStart > 10
+              ? booking.startsAt.subtract(const Duration(minutes: 10))
+              : null);
+      if (reminderTime != null) {
+        await notifService.scheduleNotification(
+          id: booking.code.hashCode.abs() % 1000000,
+          title: 'Pengingat Jadwal Ter The Cut (${booking.code})',
+          body:
+              'Jadwal potong rambut Anda di ${booking.branchName} (${booking.formattedTimeRange}) akan segera dimulai.',
+          scheduledTime: reminderTime,
+        );
+      }
 
       return booking;
     } catch (e) {
@@ -369,38 +386,6 @@ class BookingController extends ChangeNotifier {
     } finally {
       isLoadingBookings = false;
       notifyListeners();
-    }
-  }
-
-  /// Eksekusi pembatalan reservasi (US-10) setelah dikonfirmasi oleh pengguna.
-  Future<bool> executeCancelBooking(
-    Booking booking, {
-    String reason = 'Dibatalkan oleh pelanggan',
-  }) async {
-    if (!booking.canCancel) {
-      errorMessage =
-          'Sesuai ketentuan, pembatalan jadwal hanya dapat dilakukan minimal 2 jam (120 menit) sebelum waktu reservasi dimulai.';
-      notifyListeners();
-      return false;
-    }
-
-    try {
-      errorMessage = '';
-      await _bookingService.cancelBooking(booking: booking, reason: reason);
-      await loadMyBookings();
-
-      NotificationService().createNotification(
-        userId: booking.customerId,
-        title: 'Reservasi Dibatalkan',
-        message:
-            'Reservasi ${booking.code} di ${booking.branchName} telah berhasil dibatalkan.',
-        type: 'booking',
-      );
-      return true;
-    } catch (e) {
-      errorMessage = e.toString().replaceAll('Exception: ', '');
-      notifyListeners();
-      return false;
     }
   }
 

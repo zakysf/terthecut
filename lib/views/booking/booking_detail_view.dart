@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../config/theme.dart';
-import '../../config/ui_helpers.dart';
-import '../../controllers/booking_controller.dart';
 import '../../models/booking.dart';
 import '../customer_root_view.dart';
 
@@ -15,7 +13,6 @@ class BookingDetailView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Booking? bookingArg = booking;
-    final BookingController controller = BookingController();
 
     if (bookingArg == null) {
       return Scaffold(
@@ -315,37 +312,33 @@ class BookingDetailView extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // Ketentuan Pembatalan (US-10)
-              if (bookingArg.status == 'confirmed') ...[
+              if (bookingArg.status == 'cancelled') ...[
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: bookingArg.canCancel
-                        ? AppColors.surface
-                        : AppColors.accent.withValues(alpha: 0.08),
+                    color: AppColors.danger.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                      color: bookingArg.canCancel
-                          ? AppColors.hairline
-                          : AppColors.accent.withValues(alpha: 0.3),
+                      color: AppColors.danger.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        bookingArg.canCancel ? Icons.info_outline : Icons.lock_clock,
-                        color: bookingArg.canCancel ? AppColors.inkSoft : AppColors.accent,
+                      const Icon(
+                        Icons.cancel_outlined,
+                        color: AppColors.danger,
                         size: 20,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          bookingArg.canCancel
-                              ? 'Pembatalan dapat dilakukan hingga 2 jam sebelum waktu mulai reservasi.'
-                              : 'Batas waktu pembatalan (minimal 2 jam sebelumnya) telah berakhir.',
+                          bookingArg.cancelReason != null &&
+                                  bookingArg.cancelReason!.isNotEmpty
+                              ? 'Reservasi ini telah dibatalkan oleh admin (${bookingArg.cancelReason}).'
+                              : 'Reservasi ini telah dibatalkan oleh admin.',
                           style: GoogleFonts.inter(
                             fontSize: 11,
-                            color: bookingArg.canCancel ? AppColors.inkSoft : AppColors.accent,
+                            color: AppColors.danger,
                           ),
                         ),
                       ),
@@ -353,17 +346,6 @@ class BookingDetailView extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                if (bookingArg.canCancel)
-                  OutlinedButton.icon(
-                    onPressed: () => _handleCancelBooking(context, controller, bookingArg),
-                    icon: const Icon(Icons.cancel_outlined, size: 18),
-                    label: const Text('BATALKAN RESERVASI INI'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                      side: const BorderSide(color: AppColors.danger),
-                    ),
-                  ),
               ],
 
               const SizedBox(height: 12),
@@ -380,51 +362,6 @@ class BookingDetailView extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _handleCancelBooking(
-    BuildContext context,
-    BookingController controller,
-    Booking booking,
-  ) async {
-    if (!booking.canCancel) {
-      await showAppInfoDialog(
-        context,
-        title: 'Pembatalan Ditolak',
-        message:
-            'Sesuai ketentuan, pembatalan jadwal hanya dapat dilakukan minimal 2 jam (120 menit) sebelum waktu reservasi dimulai.',
-      );
-      return;
-    }
-
-    final confirmed = await showAppConfirmDialog(
-      context,
-      title: 'Batalkan Reservasi?',
-      message:
-          'Apakah Anda yakin ingin membatalkan jadwal di ${booking.branchName} pada ${booking.formattedTimeRange}?',
-      confirmLabel: 'Ya, Batalkan',
-      cancelLabel: 'Tidak',
-      confirmColor: AppColors.danger,
-    );
-    if (!confirmed) return;
-
-    final ok = await controller.executeCancelBooking(booking);
-    if (!context.mounted) return;
-    if (ok) {
-      showAppSnackBar(
-        context,
-        'Reservasi ${booking.code} telah berhasil dibatalkan.',
-        title: 'Berhasil Dibatalkan',
-      );
-      Navigator.pop(context);
-    } else {
-      showAppSnackBar(
-        context,
-        controller.errorMessage,
-        title: 'Gagal Membatalkan',
-        backgroundColor: AppColors.danger,
-      );
-    }
   }
 
   Widget _buildDetailSection({

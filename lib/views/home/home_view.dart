@@ -30,7 +30,8 @@ class _HomeViewState extends State<HomeView> {
   final AuthController _authController = AuthController();
   final BranchController _branchController = BranchController();
   final PromotionController _promotionController = PromotionController();
-  final NotificationController _notificationController = NotificationController();
+  final NotificationController _notificationController =
+      NotificationController();
 
   @override
   void initState() {
@@ -124,15 +125,6 @@ class _HomeViewState extends State<HomeView> {
             },
           ),
           IconButton(
-            icon: const Icon(
-              Icons.event_note_outlined,
-              size: 22,
-              color: AppColors.ink,
-            ),
-            tooltip: 'Booking Saya',
-            onPressed: () => CustomerNavController().toBooking(),
-          ),
-          IconButton(
             icon: const Icon(Icons.logout, size: 20, color: AppColors.inkSoft),
             tooltip: 'Keluar',
             onPressed: _handleLogout,
@@ -189,105 +181,105 @@ class _HomeViewState extends State<HomeView> {
                   return InkWell(
                     onTap: () => CustomerNavController().toPointLedger(),
                     borderRadius: BorderRadius.circular(6),
-                  child: Container(
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      color: AppColors.ink,
-                      borderRadius: BorderRadius.circular(6),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.ink.withValues(alpha: 0.15),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'MEMBERSHIP CARD',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 2.0,
-                                color: AppColors.paper.withValues(alpha: 0.7),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.gold,
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                              child: Text(
-                                tier.toUpperCase(),
+                    child: Container(
+                      padding: const EdgeInsets.all(22),
+                      decoration: BoxDecoration(
+                        color: AppColors.ink,
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.ink.withValues(alpha: 0.15),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'MEMBERSHIP CARD',
                                 style: GoogleFonts.inter(
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.5,
+                                  letterSpacing: 2.0,
+                                  color: AppColors.paper.withValues(alpha: 0.7),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.gold,
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                                child: Text(
+                                  tier.toUpperCase(),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.5,
+                                    color: AppColors.paper,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            '$points',
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: 42,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.paper,
+                            ),
+                          ),
+                          Text(
+                            'SALDO POIN LOYALITAS',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.5,
+                              color: AppColors.paper.withValues(alpha: 0.6),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Container(
+                            height: 2,
+                            color: AppColors.paper.withValues(alpha: 0.15),
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                name,
+                                style: GoogleFonts.playfairDisplay(
+                                  fontSize: 14,
+                                  fontStyle: FontStyle.italic,
                                   color: AppColors.paper,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          '$points',
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 42,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.paper,
-                          ),
-                        ),
-                        Text(
-                          'SALDO POIN LOYALITAS',
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.5,
-                            color: AppColors.paper.withValues(alpha: 0.6),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Container(
-                          height: 2,
-                          color: AppColors.paper.withValues(alpha: 0.15),
-                        ),
-                        const SizedBox(height: 14),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              name,
-                              style: GoogleFonts.playfairDisplay(
-                                fontSize: 14,
-                                fontStyle: FontStyle.italic,
-                                color: AppColors.paper,
+                              Text(
+                                'Mutasi: $lifetime Pts ->',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.gold,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Mutasi: $lifetime Pts ->',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.gold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
               ),
               const SizedBox(height: 20),
 
@@ -300,7 +292,9 @@ class _HomeViewState extends State<HomeView> {
                   bc.initWizard();
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const BookingWizardView()),
+                    MaterialPageRoute(
+                      builder: (_) => const BookingWizardView(),
+                    ),
                   );
                 },
               ),
@@ -322,48 +316,38 @@ class _HomeViewState extends State<HomeView> {
                       MaterialPageRoute(builder: (_) => const BranchListView()),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   _buildQuickAction(
                     icon: Icons.content_cut_outlined,
                     label: 'Layanan',
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ServiceCatalogView()),
+                      MaterialPageRoute(
+                        builder: (_) => const ServiceCatalogView(),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   _buildQuickAction(
                     icon: Icons.face_outlined,
                     label: 'Inspirasi',
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const HairstyleListView()),
+                      MaterialPageRoute(
+                        builder: (_) => const HairstyleListView(),
+                      ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
+                  const SizedBox(width: 8),
                   _buildQuickAction(
                     icon: Icons.card_giftcard_outlined,
                     label: 'Tukar Reward',
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const RewardCatalogView()),
+                      MaterialPageRoute(
+                        builder: (_) => const RewardCatalogView(),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  _buildQuickAction(
-                    icon: Icons.wallet_outlined,
-                    label: 'Voucher Saya',
-                    onTap: () => CustomerNavController().toVouchers(),
-                  ),
-                  const SizedBox(width: 10),
-                  _buildQuickAction(
-                    icon: Icons.receipt_long_outlined,
-                    label: 'Mutasi Poin',
-                    onTap: () => CustomerNavController().toPointLedger(),
                   ),
                 ],
               ),
@@ -397,240 +381,82 @@ class _HomeViewState extends State<HomeView> {
               ListenableBuilder(
                 listenable: _branchController,
                 builder: (context, _) {
-                if (_branchController.isLoading) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24.0),
-                      child: CircularProgressIndicator(color: AppColors.ink),
-                    ),
-                  );
-                }
-
-                final previewBranches = _branchController.branches
-                    .take(3)
-                    .toList();
-                return Column(
-                  children: previewBranches.map((branch) {
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        title: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                branch.name,
-                                style: GoogleFonts.playfairDisplay(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              branch.statusText,
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: branch.isOpenNow
-                                    ? AppColors.success
-                                    : AppColors.danger,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4.0),
-                          child: Text(
-                            branch.address,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: AppColors.inkSoft,
-                            ),
-                          ),
-                        ),
-                        trailing: const Icon(
-                          Icons.arrow_forward_ios,
-                          size: 14,
-                          color: AppColors.inkSoft,
-                        ),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => BranchDetailView(branch: branch),
-                          ),
-                        ),
+                  if (_branchController.isLoading) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: CircularProgressIndicator(color: AppColors.ink),
                       ),
                     );
-                  }).toList(),
-                );
-              },
-              ),
-              const SizedBox(height: 24),
+                  }
 
-              // Promo Menarik Sedang Berlangsung (US-16)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'PROMO & PENAWARAN',
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                  ListenableBuilder(
-                    listenable: _promotionController,
-                    builder: (context, _) {
-                      final count = _promotionController.activePromotions.length;
-                      return Text(
-                        '$count Promo Aktif',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.gold,
+                  final previewBranches = _branchController.branches
+                      .take(3)
+                      .toList();
+                  return Column(
+                    children: previewBranches.map((branch) {
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          title: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  branch.name,
+                                  style: GoogleFonts.playfairDisplay(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                branch.statusText,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: branch.isOpenNow
+                                      ? AppColors.success
+                                      : AppColors.danger,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Text(
+                              branch.address,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppColors.inkSoft,
+                              ),
+                            ),
+                          ),
+                          trailing: const Icon(
+                            Icons.arrow_forward_ios,
+                            size: 14,
+                            color: AppColors.inkSoft,
+                          ),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BranchDetailView(branch: branch),
+                            ),
+                          ),
                         ),
                       );
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ListenableBuilder(
-                listenable: _promotionController,
-                builder: (context, _) {
-                  if (_promotionController.isLoading) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: CircularProgressIndicator(color: AppColors.ink),
-                    ),
+                    }).toList(),
                   );
-                }
-
-                final promos = _promotionController.activePromotions;
-                if (promos.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: AppColors.hairline),
-                    ),
-                    child: const Text('Belum ada promo aktif untuk segmen Anda.'),
-                  );
-                }
-
-                return Column(
-                  children: promos.map((p) {
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppColors.hairline),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.gold.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Column(
-                              children: [
-                                const Icon(
-                                  Icons.local_offer,
-                                  color: AppColors.gold,
-                                  size: 20,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${p.discountPercent}%',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.gold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        p.title,
-                                        style: GoogleFonts.playfairDisplay(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.ink,
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.ink,
-                                        borderRadius: BorderRadius.circular(2),
-                                      ),
-                                      child: Text(
-                                        p.targetTierLabel,
-                                        style: const TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.paper,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  p.description,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: AppColors.inkSoft,
-                                    height: 1.3,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Periode: ${p.formattedPeriod}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    color: AppColors.accent,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                );
-              },
+                },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               // Banner Kritik & Saran Pelanggan (US-14)
               InkWell(
@@ -711,8 +537,8 @@ class _HomeViewState extends State<HomeView> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(4),
         child: Container(
-          height: 84,
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+          height: 88,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(4),
@@ -722,15 +548,16 @@ class _HomeViewState extends State<HomeView> {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 24, color: AppColors.ink),
-              const SizedBox(height: 8),
+              Icon(icon, size: 22, color: AppColors.ink),
+              const SizedBox(height: 6),
               Text(
                 label,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
-                  fontSize: 12,
+                  fontSize: 11,
+                  height: 1.2,
                   fontWeight: FontWeight.w600,
                   color: AppColors.ink,
                 ),
