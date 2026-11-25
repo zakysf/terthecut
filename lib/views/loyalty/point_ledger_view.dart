@@ -1,33 +1,37 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/loyalty_controller.dart';
 import '../../models/point_ledger.dart';
+import 'reward_catalog_view.dart';
 
-class PointLedgerView extends StatelessWidget {
+class PointLedgerView extends StatefulWidget {
   final bool showBackButton;
-  PointLedgerView({super.key, this.showBackButton = true});
-
-  final LoyaltyController _controller = Get.isRegistered<LoyaltyController>()
-      ? Get.find<LoyaltyController>()
-      : Get.put(LoyaltyController());
-
-  final AuthController _authController = Get.isRegistered<AuthController>()
-      ? Get.find<AuthController>()
-      : Get.put(AuthController(), permanent: true);
+  const PointLedgerView({super.key, this.showBackButton = true});
 
   @override
-  Widget build(BuildContext context) {
+  State<PointLedgerView> createState() => _PointLedgerViewState();
+}
+
+class _PointLedgerViewState extends State<PointLedgerView> {
+  final LoyaltyController _controller = LoyaltyController();
+  final AuthController _authController = AuthController();
+
+  @override
+  void initState() {
+    super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _controller.loadLoyaltyData();
     });
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
-        automaticallyImplyLeading: showBackButton,
+        automaticallyImplyLeading: widget.showBackButton,
         title: Text(
           'MUTASI & RIWAYAT POIN',
           style: GoogleFonts.playfairDisplay(
@@ -48,7 +52,9 @@ class PointLedgerView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Kartu Ringkasan Poin & Tier (US-02 & US-11)
-                Obx(() {
+                ListenableBuilder(
+                  listenable: _authController,
+                  builder: (context, _) {
                   final profile = _authController.currentProfile;
                   final points = profile?.pointsBalance ?? 0;
                   final lifetime = profile?.lifetimePoints ?? 0;
@@ -203,7 +209,8 @@ class PointLedgerView extends StatelessWidget {
                       ],
                     ),
                   );
-                }),
+                },
+                ),
                 const SizedBox(height: 28),
 
                 Row(
@@ -214,7 +221,10 @@ class PointLedgerView extends StatelessWidget {
                       style: Theme.of(context).textTheme.labelSmall,
                     ),
                     TextButton(
-                      onPressed: () => Get.toNamed('/rewards'),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RewardCatalogView()),
+                      ),
                       child: const Text('TUKAR REWARD', style: TextStyle(fontSize: 11)),
                     ),
                   ],
@@ -222,8 +232,10 @@ class PointLedgerView extends StatelessWidget {
                 const SizedBox(height: 10),
 
                 // Daftar Mutasi Poin
-                Obx(() {
-                  if (_controller.isLoading.value) {
+                ListenableBuilder(
+                  listenable: _controller,
+                  builder: (context, _) {
+                    if (_controller.isLoading) {
                     return const Center(child: CircularProgressIndicator(color: AppColors.ink));
                   }
 
@@ -254,7 +266,8 @@ class PointLedgerView extends StatelessWidget {
                   return Column(
                     children: ledger.map((entry) => _buildLedgerTile(entry)).toList(),
                   );
-                }),
+                },
+                ),
               ],
             ),
           ),

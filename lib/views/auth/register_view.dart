@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
+import '../../config/ui_helpers.dart';
 import '../../controllers/auth_controller.dart';
+import '../customer_root_view.dart';
 
 class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
@@ -12,9 +13,7 @@ class RegisterView extends StatefulWidget {
 }
 
 class _RegisterViewState extends State<RegisterView> {
-  final AuthController _authController = Get.isRegistered<AuthController>()
-      ? Get.find<AuthController>()
-      : Get.put(AuthController(), permanent: true);
+  final AuthController _authController = AuthController();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _identifierController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -31,35 +30,56 @@ class _RegisterViewState extends State<RegisterView> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final name = _nameController.text.trim();
     final identifier = _identifierController.text.trim();
     final password = _passwordController.text.trim();
     final confirm = _confirmPassController.text.trim();
 
     if (name.isEmpty || identifier.isEmpty || password.isEmpty) {
-      Get.snackbar(
-        'Perhatian',
+      showAppSnackBar(
+        context,
         'Lengkapi seluruh data pendaftaran.',
-        snackPosition: SnackPosition.BOTTOM,
+        title: 'Perhatian',
       );
       return;
     }
 
     if (password != confirm) {
-      Get.snackbar(
-        'Perhatian',
+      showAppSnackBar(
+        context,
         'Konfirmasi kata sandi tidak cocok.',
-        snackPosition: SnackPosition.BOTTOM,
+        title: 'Perhatian',
       );
       return;
     }
 
-    _authController.register(
+    final ok = await _authController.register(
       name: name,
       identifier: identifier,
       password: password,
     );
+    if (!mounted) return;
+
+    if (ok) {
+      showAppSnackBar(
+        context,
+        'Selamat datang di Ter The Cut Barbershop, $name!',
+        title: 'Registrasi Berhasil',
+      );
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const CustomerRootView()),
+        (route) => false,
+      );
+    } else {
+      showAppSnackBar(
+        context,
+        _authController.errorMessage,
+        title: 'Pendaftaran Gagal',
+        backgroundColor: AppColors.danger,
+      );
+    }
   }
 
   @override
@@ -70,7 +90,7 @@ class _RegisterViewState extends State<RegisterView> {
         title: const Text('DAFTAR MEMBER'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SafeArea(
@@ -151,17 +171,20 @@ class _RegisterViewState extends State<RegisterView> {
               const SizedBox(height: 28),
 
               // Tombol Daftar
-              Obx(() {
-                if (_authController.isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppColors.ink),
+              ListenableBuilder(
+                listenable: _authController,
+                builder: (context, _) {
+                  if (_authController.isLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: AppColors.ink),
+                    );
+                  }
+                  return ElevatedButton(
+                    onPressed: _submit,
+                    child: const Text('DAFTAR SEKARANG'),
                   );
-                }
-                return ElevatedButton(
-                  onPressed: _submit,
-                  child: const Text('DAFTAR SEKARANG'),
-                );
-              }),
+                },
+              ),
             ],
           ),
         ),

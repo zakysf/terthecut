@@ -1,45 +1,42 @@
-import 'package:get/get.dart';
+import 'package:flutter/foundation.dart';
 import '../models/promotion.dart';
 import '../services/promotion_service.dart';
 import 'auth_controller.dart';
 
-/// Controller Manajemen Promo & Diskon Segmen (US-16, US-17)
-class PromotionController extends GetxController {
+/// Singleton controller Manajemen Promo & Diskon Segmen (US-16, US-17).
+class PromotionController extends ChangeNotifier {
+  static final PromotionController _instance = PromotionController._internal();
+  factory PromotionController() => _instance;
+  PromotionController._internal();
+
   final PromotionService _promotionService = PromotionService();
 
-  final RxList<Promotion> activePromotions = <Promotion>[].obs;
-  final RxList<Promotion> allPromotions = <Promotion>[].obs;
-  final RxBool isLoading = false.obs;
-  final RxBool isSubmitting = false.obs;
+  List<Promotion> activePromotions = [];
+  List<Promotion> allPromotions = [];
+  bool isLoading = false;
+  bool isSubmitting = false;
+  String errorMessage = '';
 
-  @override
-  void onInit() {
-    super.onInit();
-    loadPromotions();
-  }
-
-  /// Memuat promo aktif untuk pelanggan berdasarkan tier keanggotaan
+  /// Memuat promo aktif untuk pelanggan berdasarkan tier keanggotaan.
   Future<void> loadPromotions() async {
     try {
-      isLoading.value = true;
-      final auth = Get.isRegistered<AuthController>()
-          ? Get.find<AuthController>()
-          : Get.put(AuthController(), permanent: true);
+      isLoading = true;
+      notifyListeners();
 
-      final userTier = auth.currentProfile?.tier;
-
+      final userTier = AuthController().currentProfile?.tier;
       final active = await _promotionService.getActivePromotions(userTier: userTier);
       final all = await _promotionService.getAllPromotions();
 
-      activePromotions.assignAll(active);
-      allPromotions.assignAll(all);
+      activePromotions = active;
+      allPromotions = all;
     } catch (_) {
     } finally {
-      isLoading.value = false;
+      isLoading = false;
+      notifyListeners();
     }
   }
 
-  /// Menambahkan promo baru oleh admin (US-17)
+  /// Menambahkan promo baru oleh admin (US-17).
   Future<bool> createPromotion({
     required String title,
     required String description,
@@ -49,16 +46,16 @@ class PromotionController extends GetxController {
     required DateTime endDate,
   }) async {
     if (title.trim().isEmpty || description.trim().isEmpty) {
-      Get.snackbar(
-        'Perhatian',
-        'Harap isi judul dan deskripsi promo.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      errorMessage = 'Harap isi judul dan deskripsi promo.';
+      notifyListeners();
       return false;
     }
 
     try {
-      isSubmitting.value = true;
+      isSubmitting = true;
+      errorMessage = '';
+      notifyListeners();
+
       final promo = await _promotionService.createPromotion(
         title: title.trim(),
         description: description.trim(),
@@ -68,40 +65,32 @@ class PromotionController extends GetxController {
         endDate: endDate,
       );
 
-      allPromotions.insert(0, promo);
-      activePromotions.insert(0, promo);
-      isSubmitting.value = false;
-
-      Get.snackbar(
-        'Promo Diterbitkan',
-        'Promo "$title" berhasil dibuat untuk segmen $targetTier.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      allPromotions = [promo, ...allPromotions];
+      activePromotions = [promo, ...activePromotions];
+      isSubmitting = false;
+      notifyListeners();
       return true;
     } catch (e) {
-      isSubmitting.value = false;
-      Get.snackbar(
-        'Gagal Membuat Promo',
-        e.toString().replaceAll('Exception:', '').trim(),
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      isSubmitting = false;
+      errorMessage = e.toString().replaceAll('Exception:', '').trim();
+      notifyListeners();
       return false;
     }
   }
 
-  /// Memperbarui promo yang sudah ada (US-17 CRUD - Update)
+  /// Memperbarui promo yang sudah ada (US-17 CRUD - Update).
   Future<bool> updatePromotion(Promotion promo) async {
     if (promo.title.trim().isEmpty || promo.description.trim().isEmpty) {
-      Get.snackbar(
-        'Perhatian',
-        'Harap isi judul dan deskripsi promo.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      errorMessage = 'Harap isi judul dan deskripsi promo.';
+      notifyListeners();
       return false;
     }
 
     try {
-      isSubmitting.value = true;
+      isSubmitting = true;
+      errorMessage = '';
+      notifyListeners();
+
       await _promotionService.updatePromotion(promo);
 
       final allIdx = allPromotions.indexWhere((p) => p.id == promo.id);
@@ -116,46 +105,32 @@ class PromotionController extends GetxController {
           activePromotions.removeAt(actIdx);
         }
       } else if (promo.isValidNow) {
-        activePromotions.insert(0, promo);
+        activePromotions = [promo, ...activePromotions];
       }
 
-      isSubmitting.value = false;
-      Get.snackbar(
-        'Promo Diperbarui',
-        'Promo "${promo.title}" berhasil diperbarui.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      isSubmitting = false;
+      notifyListeners();
       return true;
     } catch (e) {
-      isSubmitting.value = false;
-      Get.snackbar(
-        'Gagal Memperbarui Promo',
-        e.toString().replaceAll('Exception:', '').trim(),
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      isSubmitting = false;
+      errorMessage = e.toString().replaceAll('Exception:', '').trim();
+      notifyListeners();
       return false;
     }
   }
 
-  /// Menghapus promo dari sistem (US-17 CRUD - Delete)
+  /// Menghapus promo dari sistem (US-17 CRUD - Delete).
   Future<bool> deletePromotion(String promoId) async {
     try {
+      errorMessage = '';
       await _promotionService.deletePromotion(promoId);
       allPromotions.removeWhere((p) => p.id == promoId);
       activePromotions.removeWhere((p) => p.id == promoId);
-
-      Get.snackbar(
-        'Promo Dihapus',
-        'Promo berhasil dihapus dari sistem.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      notifyListeners();
       return true;
     } catch (e) {
-      Get.snackbar(
-        'Gagal Menghapus Promo',
-        e.toString().replaceAll('Exception:', '').trim(),
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      errorMessage = e.toString().replaceAll('Exception:', '').trim();
+      notifyListeners();
       return false;
     }
   }

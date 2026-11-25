@@ -1,27 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
 import '../../models/branch.dart';
 import '../../controllers/branch_controller.dart';
 import '../../controllers/booking_controller.dart';
+import '../booking/booking_wizard_view.dart';
 
 class BranchDetailView extends StatefulWidget {
-  const BranchDetailView({super.key});
+  final Branch branch;
+
+  const BranchDetailView({super.key, required this.branch});
 
   @override
   State<BranchDetailView> createState() => _BranchDetailViewState();
 }
 
 class _BranchDetailViewState extends State<BranchDetailView> {
-  final BranchController _controller = Get.put(BranchController());
+  final BranchController _controller = BranchController();
   late final Branch branch;
 
   @override
   void initState() {
     super.initState();
-    branch = Get.arguments as Branch;
-    _controller.loadBarbersForBranch(branch.id);
+    branch = widget.branch;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.loadBarbersForBranch(branch.id);
+    });
   }
 
   @override
@@ -32,7 +36,7 @@ class _BranchDetailViewState extends State<BranchDetailView> {
         title: Text(branch.name),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SafeArea(
@@ -122,16 +126,18 @@ class _BranchDetailViewState extends State<BranchDetailView> {
               ),
               const SizedBox(height: 14),
 
-              Obx(() {
-                final barbers = _controller.selectedBranchBarbers;
-                if (barbers.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Center(child: CircularProgressIndicator(color: AppColors.ink)),
-                  );
-                }
+              ListenableBuilder(
+                listenable: _controller,
+                builder: (context, _) {
+                  final barbers = _controller.selectedBranchBarbers;
+                  if (barbers.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(child: CircularProgressIndicator(color: AppColors.ink)),
+                    );
+                  }
 
-                return Column(
+                  return Column(
                   children: barbers.map((barber) {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -200,7 +206,8 @@ class _BranchDetailViewState extends State<BranchDetailView> {
                     );
                   }).toList(),
                 );
-              }),
+              },
+            ),
               const SizedBox(height: 24),
 
               // Tombol Booking untuk Sprint 2
@@ -208,11 +215,12 @@ class _BranchDetailViewState extends State<BranchDetailView> {
                 icon: const Icon(Icons.calendar_month_outlined, size: 18),
                 label: const Text('PESAN JADWAL DI CABANG INI'),
                 onPressed: () {
-                  final bc = Get.isRegistered<BookingController>()
-                      ? Get.find<BookingController>()
-                      : Get.put(BookingController());
+                  final bc = BookingController();
                   bc.initWizard(initialBranch: branch);
-                  Get.toNamed('/booking-wizard');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BookingWizardView()),
+                  );
                 },
               ),
             ],

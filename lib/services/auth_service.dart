@@ -255,4 +255,8 @@ class AuthService {
   }
 
   Profile? get currentProfile => _currentSessionProfile;
+
+  void restoreSessionProfile(Profile? profile) {
+    _currentSessionProfile = profile;
+  }
 }

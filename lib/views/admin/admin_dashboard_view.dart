@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../config/theme.dart';
 import '../../config/date_format_helper.dart';
+import '../../config/ui_helpers.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/admin_controller.dart';
 import '../../controllers/feedback_controller.dart';
@@ -12,15 +12,23 @@ import '../../controllers/promotion_controller.dart';
 import '../../models/booking.dart';
 import '../../models/profile.dart';
 import '../../models/promotion.dart';
+import '../auth/login_view.dart';
 
-class AdminDashboardView extends StatelessWidget {
-  AdminDashboardView({super.key});
+class AdminDashboardView extends StatefulWidget {
+  const AdminDashboardView({super.key});
 
-  final AuthController _authController = Get.isRegistered<AuthController>()
-      ? Get.find<AuthController>()
-      : Get.put(AuthController(), permanent: true);
+  @override
+  State<AdminDashboardView> createState() => _AdminDashboardViewState();
+}
 
-  final AdminController _adminController = Get.put(AdminController());
+class _AdminDashboardViewState extends State<AdminDashboardView> {
+  final AuthController _authController = AuthController();
+  final AdminController _adminController = AdminController();
+  final FeedbackController _feedbackController = FeedbackController();
+  final PromotionController _promotionController = PromotionController();
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  int _currentTabIndex = 0;
 
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
@@ -29,18 +37,75 @@ class AdminDashboardView extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) {
-    final FeedbackController feedbackController = Get.put(FeedbackController());
-    final PromotionController promotionController = Get.put(PromotionController());
-
+  void initState() {
+    super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _adminController.loadBranches();
       _adminController.loadSchedule();
-      feedbackController.loadFeedbacks();
-      promotionController.loadPromotions();
+      _feedbackController.loadFeedbacks();
+      _promotionController.loadPromotions();
     });
+  }
 
-    final RxInt currentTabIndex = 0.obs;
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
+  Future<void> _handleLogout() async {
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: 'Konfirmasi Keluar',
+      message: 'Apakah Anda ingin keluar dari panel admin kasir?',
+      confirmLabel: 'Ya, Keluar',
+      cancelLabel: 'Batal',
+    );
+    if (!confirmed) return;
+
+    await _authController.logout();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginView()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _handleCompleteBooking(Booking booking) async {
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: 'Konfirmasi Kasir',
+      message:
+          'Selesaikan layanan ${booking.serviceName}?\nTransaksi Rp ${booking.servicePrice} akan dibukukan dan +${booking.servicePoints} Poin akan otomatis ditambahkan ke akun pelanggan.',
+      confirmLabel: 'Ya, Selesaikan',
+      cancelLabel: 'Batal',
+      confirmColor: AppColors.success,
+    );
+    if (!confirmed) return;
+
+    final ok = await _adminController.executeCompleteBooking(booking);
+    if (!mounted) return;
+    if (ok) {
+      showAppSnackBar(
+        context,
+        'Booking ${booking.code} telah diselesaikan. Transaksi & +${booking.servicePoints} poin berhasil dicatat!',
+        title: 'Layanan Selesai',
+        backgroundColor: AppColors.success,
+        duration: const Duration(seconds: 4),
+      );
+    } else {
+      showAppSnackBar(
+        context,
+        _adminController.errorMessage,
+        title: 'Gagal',
+        backgroundColor: AppColors.danger,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
@@ -60,65 +125,53 @@ class AdminDashboardView extends StatelessWidget {
             tooltip: 'Segarkan Data',
             onPressed: () {
               _adminController.loadSchedule();
-              feedbackController.loadFeedbacks();
-              promotionController.loadPromotions();
+              _feedbackController.loadFeedbacks();
+              _promotionController.loadPromotions();
             },
           ),
           IconButton(
             icon: const Icon(Icons.logout, color: AppColors.inkSoft),
             tooltip: 'Keluar',
-            onPressed: () {
-              Get.defaultDialog(
-                title: 'Konfirmasi Keluar',
-                middleText: 'Apakah Anda ingin keluar dari panel admin kasir?',
-                textConfirm: 'Ya, Keluar',
-                textCancel: 'Batal',
-                confirmTextColor: AppColors.paper,
-                buttonColor: AppColors.ink,
-                onConfirm: () {
-                  Get.back();
-                  _authController.logout();
-                },
-              );
-            },
+            onPressed: _handleLogout,
           ),
         ],
       ),
       body: SafeArea(
-        child: Obx(() {
-          switch (currentTabIndex.value) {
-            case 0:
-              return _buildScheduleTab(context);
-            case 1:
-              return _buildCustomerSearchTab();
-            case 2:
-              return _buildFeedbackTab(feedbackController);
-            case 3:
-              return _buildPromotionsTab(context, promotionController);
-            default:
-              return _buildScheduleTab(context);
-          }
-        }),
+        child: Builder(
+          builder: (context) {
+            switch (_currentTabIndex) {
+              case 0:
+                return _buildScheduleTab(context);
+              case 1:
+                return _buildCustomerSearchTab();
+              case 2:
+                return _buildFeedbackTab(_feedbackController);
+              case 3:
+                return _buildPromotionsTab(context, _promotionController);
+              default:
+                return _buildScheduleTab(context);
+            }
+          },
+        ),
       ),
-      bottomNavigationBar: Obx(
-        () => Container(
-          decoration: const BoxDecoration(
-            border: Border(
-              top: BorderSide(color: AppColors.hairline, width: 0.8),
-            ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(
+            top: BorderSide(color: AppColors.hairline, width: 0.8),
           ),
-          child: BottomNavigationBar(
-            currentIndex: currentTabIndex.value,
-            onTap: (index) => currentTabIndex.value = index,
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: AppColors.surface,
-            selectedItemColor: AppColors.accent,
-            unselectedItemColor: AppColors.inkSoft,
-            selectedLabelStyle: GoogleFonts.inter(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
-            ),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentTabIndex,
+          onTap: (index) => setState(() => _currentTabIndex = index),
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: AppColors.surface,
+          selectedItemColor: AppColors.accent,
+          unselectedItemColor: AppColors.inkSoft,
+          selectedLabelStyle: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
             unselectedLabelStyle: GoogleFonts.inter(
               fontSize: 10,
               fontWeight: FontWeight.w500,
@@ -146,7 +199,6 @@ class AdminDashboardView extends StatelessWidget {
                 label: 'Promo',
               ),
             ],
-          ),
         ),
       ),
     );
@@ -167,11 +219,11 @@ class AdminDashboardView extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // Filter Cabang & Tanggal (US-18)
-                _buildFilterSection(),
+                _buildFilterSection(context),
                 const SizedBox(height: 20),
 
                 // Ringkasan Kasir & Operasional Harian
-                _buildSummaryMetrics(),
+                _buildSummaryMetrics(context),
                 const SizedBox(height: 24),
 
                 // Status Tabs (Filter Cepat)
@@ -186,74 +238,80 @@ class AdminDashboardView extends StatelessWidget {
                       'ANTREAN RESERVASI HARIAN',
                       style: Theme.of(context).textTheme.labelSmall,
                     ),
-                    Obx(() {
-                      return Text(
-                        'Total: ${_adminController.filteredBookings.length} Jadwal',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: AppColors.inkSoft,
-                        ),
-                      );
-                    }),
+                    ListenableBuilder(
+                      listenable: _adminController,
+                      builder: (context, _) {
+                        return Text(
+                          'Total: ${_adminController.filteredBookings.length} Jadwal',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: AppColors.inkSoft,
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
 
-                Obx(() {
-                  if (_adminController.isLoading.value) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(40.0),
-                        child: CircularProgressIndicator(color: AppColors.ink),
-                      ),
-                    );
-                  }
+                ListenableBuilder(
+                  listenable: _adminController,
+                  builder: (context, _) {
+                    if (_adminController.isLoading) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(40.0),
+                          child: CircularProgressIndicator(color: AppColors.ink),
+                        ),
+                      );
+                    }
 
-                  final bookings = _adminController.filteredBookings;
-                  if (bookings.isEmpty) {
-                    return Container(
-                      padding: const EdgeInsets.all(36),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: AppColors.hairline),
-                      ),
-                      alignment: Alignment.center,
-                      child: Column(
-                        children: [
-                          const Icon(
-                            Icons.event_available,
-                            size: 40,
-                            color: AppColors.inkSoft,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Tidak Ada Booking Pada Kriteria Ini',
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Silakan pilih tanggal lain atau cabang lain untuk memantau jadwal reservasi.',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
+                    final bookings = _adminController.filteredBookings;
+                    if (bookings.isEmpty) {
+                      return Container(
+                        padding: const EdgeInsets.all(36),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: AppColors.hairline),
+                        ),
+                        alignment: Alignment.center,
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.event_available,
+                              size: 40,
                               color: AppColors.inkSoft,
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
+                            const SizedBox(height: 12),
+                            Text(
+                              'Tidak Ada Booking Pada Kriteria Ini',
+                              style: GoogleFonts.playfairDisplay(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Silakan pilih tanggal lain atau cabang lain untuk memantau jadwal reservasi.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppColors.inkSoft,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
 
-                  return Column(
-                    children: bookings
-                        .map((b) => _buildBookingCashierCard(b))
-                        .toList(),
-                  );
-                }),
+                    return Column(
+                      children: bookings
+                          .map((b) => _buildBookingCashierCard(b))
+                          .toList(),
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -261,23 +319,25 @@ class AdminDashboardView extends StatelessWidget {
   }
 
   Widget _buildAdminHeader() {
-    return Obx(() {
-      final profile = _authController.currentProfile;
-      final name = profile?.name ?? 'Admin Kasir Ter The Cut';
+    return ListenableBuilder(
+      listenable: _authController,
+      builder: (context, _) {
+        final profile = _authController.currentProfile;
+        final name = profile?.name ?? 'Admin Kasir Ter The Cut';
 
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.ink,
-          borderRadius: BorderRadius.circular(4),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.ink.withValues(alpha: 0.15),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.ink,
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.ink.withValues(alpha: 0.15),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -341,7 +401,7 @@ class AdminDashboardView extends StatelessWidget {
     });
   }
 
-  Widget _buildFilterSection() {
+  Widget _buildFilterSection(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -354,205 +414,213 @@ class AdminDashboardView extends StatelessWidget {
         children: [
           Text(
             'FILTER CABANG (11 CABANG)',
-            style: Theme.of(Get.context!).textTheme.labelSmall,
+            style: Theme.of(context).textTheme.labelSmall,
           ),
           const SizedBox(height: 8),
 
           // Dropdown Cabang
-          Obx(() {
-            final branches = _adminController.branches;
-            final selected = _adminController.selectedBranchId.value;
+          ListenableBuilder(
+            listenable: _adminController,
+            builder: (context, _) {
+              final branches = _adminController.branches;
+              final selected = _adminController.selectedBranchId;
 
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.hairline),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: selected,
-                  isExpanded: true,
-                  icon: const Icon(
-                    Icons.keyboard_arrow_down,
-                    color: AppColors.ink,
-                  ),
-                  items: [
-                    const DropdownMenuItem(
-                      value: 'all',
-                      child: Text('Semua Cabang (11 Cabang)'),
-                    ),
-                    ...branches.map((b) {
-                      return DropdownMenuItem(
-                        value: b.id,
-                        child: Text(b.name, overflow: TextOverflow.ellipsis),
-                      );
-                    }),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) _adminController.changeBranch(val);
-                  },
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.hairline),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-              ),
-            );
-          }),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selected,
+                    isExpanded: true,
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down,
+                      color: AppColors.ink,
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: 'all',
+                        child: Text('Semua Cabang (11 Cabang)'),
+                      ),
+                      ...branches.map((b) {
+                        return DropdownMenuItem(
+                          value: b.id,
+                          child: Text(b.name, overflow: TextOverflow.ellipsis),
+                        );
+                      }),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) _adminController.changeBranch(val);
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
 
           const SizedBox(height: 14),
           Text(
             'TANGGAL JADWAL',
-            style: Theme.of(Get.context!).textTheme.labelSmall,
+            style: Theme.of(context).textTheme.labelSmall,
           ),
           const SizedBox(height: 8),
 
           // Tombol Pemilih Tanggal Cepat
-          Obx(() {
-            final date = _adminController.selectedDate.value;
-            final now = DateTime.now();
-            final isToday =
-                date.year == now.year &&
-                date.month == now.month &&
-                date.day == now.day;
-            final dateLabel = IndonesianDateHelper.formatFull(date);
+          ListenableBuilder(
+            listenable: _adminController,
+            builder: (context, _) {
+              final date = _adminController.selectedDate;
+              final now = DateTime.now();
+              final isToday =
+                  date.year == now.year &&
+                  date.month == now.month &&
+                  date.day == now.day;
+              final dateLabel = IndonesianDateHelper.formatFull(date);
 
-            return Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.paper,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: AppColors.hairline),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today,
-                          size: 14,
-                          color: AppColors.accent,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '$dateLabel ${isToday ? "(Hari Ini)" : ""}',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+              return Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.paper,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: AppColors.hairline),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today,
+                            size: 14,
+                            color: AppColors.accent,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '$dateLabel ${isToday ? "(Hari Ini)" : ""}',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  style: IconButton.styleFrom(backgroundColor: AppColors.ink),
-                  icon: const Icon(
-                    Icons.date_range,
-                    color: AppColors.paper,
-                    size: 18,
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    style: IconButton.styleFrom(backgroundColor: AppColors.ink),
+                    icon: const Icon(
+                      Icons.date_range,
+                      color: AppColors.paper,
+                      size: 18,
+                    ),
+                    tooltip: 'Pilih Tanggal',
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _adminController.selectedDate,
+                        firstDate: DateTime.now().subtract(
+                          const Duration(days: 7),
+                        ),
+                        lastDate: DateTime.now().add(const Duration(days: 14)),
+                      );
+                      if (picked != null) {
+                        _adminController.changeDate(picked);
+                      }
+                    },
                   ),
-                  tooltip: 'Pilih Tanggal',
-                  onPressed: () async {
-                    final picked = await showDatePicker(
-                      context: Get.context!,
-                      initialDate: _adminController.selectedDate.value,
-                      firstDate: DateTime.now().subtract(
-                        const Duration(days: 7),
-                      ),
-                      lastDate: DateTime.now().add(const Duration(days: 14)),
-                    );
-                    if (picked != null) {
-                      _adminController.changeDate(picked);
-                    }
-                  },
-                ),
-              ],
-            );
-          }),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryMetrics() {
-    return Obx(() {
-      final total = _adminController.totalToday;
-      final pending = _adminController.pendingCount;
-      final completed = _adminController.completedCount;
-      final revenue = _adminController.totalRevenue;
-      final points = _adminController.totalPointsAwarded;
+  Widget _buildSummaryMetrics(BuildContext context) {
+    return ListenableBuilder(
+      listenable: _adminController,
+      builder: (context, _) {
+        final total = _adminController.totalToday;
+        final pending = _adminController.pendingCount;
+        final completed = _adminController.completedCount;
+        final revenue = _adminController.totalRevenue;
+        final points = _adminController.totalPointsAwarded;
 
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: AppColors.hairline),
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                _buildStatItem('TOTAL RESERVASI', '$total', AppColors.ink),
-                _buildStatItem(
-                  'MENUNGGU / AKTIF',
-                  '$pending',
-                  AppColors.accent,
-                ),
-                _buildStatItem(
-                  'SELESAI (KASIR)',
-                  '$completed',
-                  AppColors.success,
-                ),
-              ],
-            ),
-            const Divider(height: 24, color: AppColors.hairline),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'OMSET TERBUKU (KASIR)',
-                      style: Theme.of(Get.context!).textTheme.labelSmall,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _currencyFormat.format(revenue),
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.ink,
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: AppColors.hairline),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _buildStatItem('TOTAL RESERVASI', '$total', AppColors.ink),
+                  _buildStatItem(
+                    'MENUNGGU / AKTIF',
+                    '$pending',
+                    AppColors.accent,
+                  ),
+                  _buildStatItem(
+                    'SELESAI (KASIR)',
+                    '$completed',
+                    AppColors.success,
+                  ),
+                ],
+              ),
+              const Divider(height: 24, color: AppColors.hairline),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'OMSET TERBUKU (KASIR)',
+                        style: Theme.of(context).textTheme.labelSmall,
                       ),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'POIN DIBAGIKAN',
-                      style: Theme.of(Get.context!).textTheme.labelSmall,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '+$points Pts',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.gold,
+                      const SizedBox(height: 2),
+                      Text(
+                        _currencyFormat.format(revenue),
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.ink,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'POIN DIBAGIKAN',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '+$points Pts',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.gold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
           ],
         ),
       );
@@ -594,47 +662,50 @@ class AdminDashboardView extends StatelessWidget {
       {'id': 'completed', 'label': 'Selesai'},
     ];
 
-    return Obx(() {
-      final active = _adminController.statusFilter.value;
+    return ListenableBuilder(
+      listenable: _adminController,
+      builder: (context, _) {
+        final active = _adminController.statusFilter;
 
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: filters.map((f) {
-            final isSelected = active == f['id'];
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: GestureDetector(
-                onTap: () => _adminController.setStatusFilter(f['id']!),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppColors.ink : AppColors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected ? AppColors.ink : AppColors.hairline,
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: filters.map((f) {
+              final isSelected = active == f['id'];
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () => _adminController.setStatusFilter(f['id']!),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
                     ),
-                  ),
-                  child: Text(
-                    f['label']!,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.w500,
-                      color: isSelected ? AppColors.paper : AppColors.ink,
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.ink : AppColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? AppColors.ink : AppColors.hairline,
+                      ),
+                    ),
+                    child: Text(
+                      f['label']!,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
+                        color: isSelected ? AppColors.paper : AppColors.ink,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
-        ),
-      );
-    });
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildBookingCashierCard(Booking booking) {
@@ -898,7 +969,7 @@ class AdminDashboardView extends StatelessWidget {
                     backgroundColor: AppColors.success,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  onPressed: () => _adminController.completeBooking(booking),
+                  onPressed: () => _handleCompleteBooking(booking),
                 ),
               ),
             ],
@@ -935,38 +1006,47 @@ class AdminDashboardView extends StatelessWidget {
 
           // Search Field
           TextField(
-            onChanged: (val) => _adminController.customerSearchQuery.value = val,
+            controller: _searchCtrl,
+            onChanged: _adminController.onCustomerSearchChanged,
             decoration: InputDecoration(
               hintText: 'Ketik nama / nomor telepon pelanggan...',
               prefixIcon: const Icon(Icons.search, color: AppColors.inkSoft),
-              suffixIcon: Obx(() {
-                if (_adminController.customerSearchQuery.value.isNotEmpty) {
-                  return IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () => _adminController.customerSearchQuery.value = '',
-                  );
-                }
-                return const SizedBox.shrink();
-              }),
+              suffixIcon: ListenableBuilder(
+                listenable: _adminController,
+                builder: (context, _) {
+                  if (_adminController.customerSearchQuery.isNotEmpty) {
+                    return IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        _adminController.onCustomerSearchChanged('');
+                      },
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
             ),
           ),
           const SizedBox(height: 20),
 
           // Search Results
-          Obx(() {
-            if (_adminController.isSearching.value) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32.0),
-                  child: CircularProgressIndicator(color: AppColors.ink),
-                ),
-              );
-            }
+          ListenableBuilder(
+            listenable: _adminController,
+            builder: (context, _) {
+              if (_adminController.isSearching) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: CircularProgressIndicator(color: AppColors.ink),
+                  ),
+                );
+              }
 
-            final query = _adminController.customerSearchQuery.value.trim();
-            final results = _adminController.searchedCustomers;
+              final query = _adminController.customerSearchQuery.trim();
+              final results = _adminController.searchedCustomers;
 
-            if (query.isEmpty) {
+              if (query.isEmpty) {
               return Container(
                 padding: const EdgeInsets.all(28),
                 decoration: BoxDecoration(
@@ -1217,16 +1297,19 @@ class AdminDashboardView extends StatelessWidget {
                     color: AppColors.inkSoft,
                   ),
                 ),
-                Obx(() {
-                  return Text(
-                    '${controller.feedbacks.length} Masukan',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.accent,
-                    ),
-                  );
-                }),
+                ListenableBuilder(
+                  listenable: controller,
+                  builder: (context, _) {
+                    return Text(
+                      '${controller.feedbacks.length} Masukan',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.accent,
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 6),
@@ -1236,18 +1319,20 @@ class AdminDashboardView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            Obx(() {
-              if (controller.isLoading.value) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(40.0),
-                    child: CircularProgressIndicator(color: AppColors.ink),
-                  ),
-                );
-              }
+            ListenableBuilder(
+              listenable: controller,
+              builder: (context, _) {
+                if (controller.isLoading) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40.0),
+                      child: CircularProgressIndicator(color: AppColors.ink),
+                    ),
+                  );
+                }
 
-              final items = controller.feedbacks;
-              if (items.isEmpty) {
+                final items = controller.feedbacks;
+                if (items.isEmpty) {
                 return Container(
                   padding: const EdgeInsets.all(32),
                   decoration: BoxDecoration(
@@ -1413,18 +1498,20 @@ class AdminDashboardView extends StatelessWidget {
             ),
             const SizedBox(height: 14),
 
-            Obx(() {
-              if (controller.isLoading.value) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(40.0),
-                    child: CircularProgressIndicator(color: AppColors.ink),
-                  ),
-                );
-              }
+            ListenableBuilder(
+              listenable: controller,
+              builder: (context, _) {
+                if (controller.isLoading) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40.0),
+                      child: CircularProgressIndicator(color: AppColors.ink),
+                    ),
+                  );
+                }
 
-              final promos = controller.allPromotions;
-              if (promos.isEmpty) {
+                final promos = controller.allPromotions;
+                if (promos.isEmpty) {
                 return Container(
                   padding: const EdgeInsets.all(32),
                   decoration: BoxDecoration(
@@ -1524,7 +1611,7 @@ class AdminDashboardView extends StatelessWidget {
                               ),
                               // Tombol Delete (CRUD - Delete)
                               InkWell(
-                                onTap: () => _confirmDeletePromo(controller, p),
+                                onTap: () => _confirmDeletePromo(context, controller, p),
                                 borderRadius: BorderRadius.circular(4),
                                 child: const Padding(
                                   padding: EdgeInsets.all(4),
@@ -1569,19 +1656,37 @@ class AdminDashboardView extends StatelessWidget {
     );
   }
 
-  void _confirmDeletePromo(PromotionController controller, Promotion promo) {
-    Get.defaultDialog(
+  Future<void> _confirmDeletePromo(
+    BuildContext context,
+    PromotionController controller,
+    Promotion promo,
+  ) async {
+    final confirmed = await showAppConfirmDialog(
+      context,
       title: 'Hapus Promo',
-      middleText: 'Apakah Anda yakin ingin menghapus promo "${promo.title}"?',
-      textConfirm: 'Ya, Hapus',
-      textCancel: 'Batal',
-      confirmTextColor: AppColors.paper,
-      buttonColor: AppColors.danger,
-      onConfirm: () {
-        Get.back();
-        controller.deletePromotion(promo.id);
-      },
+      message: 'Apakah Anda yakin ingin menghapus promo "${promo.title}"?',
+      confirmLabel: 'Ya, Hapus',
+      cancelLabel: 'Batal',
+      confirmColor: AppColors.danger,
     );
+    if (!confirmed) return;
+
+    final ok = await controller.deletePromotion(promo.id);
+    if (!mounted) return;
+    if (ok) {
+      showAppSnackBar(
+        this.context,
+        'Promo berhasil dihapus dari sistem.',
+        title: 'Promo Dihapus',
+      );
+    } else {
+      showAppSnackBar(
+        this.context,
+        controller.errorMessage,
+        title: 'Gagal Menghapus Promo',
+        backgroundColor: AppColors.danger,
+      );
+    }
   }
 
   void _showPromoFormModal(
@@ -1639,7 +1744,7 @@ class AdminDashboardView extends StatelessWidget {
                             ),
                             IconButton(
                               icon: const Icon(Icons.close, size: 20),
-                              onPressed: () => Get.back(),
+                              onPressed: () => Navigator.pop(modalContext),
                             ),
                           ],
                         ),
@@ -1737,17 +1842,52 @@ class AdminDashboardView extends StatelessWidget {
                                 isActive: isActive,
                               );
                               final ok = await controller.updatePromotion(updated);
-                              if (ok) Get.back();
+                              if (!modalContext.mounted) return;
+                              if (ok) {
+                                Navigator.pop(modalContext);
+                                if (mounted) {
+                                  showAppSnackBar(
+                                    this.context,
+                                    'Promo "${updated.title}" berhasil diperbarui.',
+                                    title: 'Promo Diperbarui',
+                                  );
+                                }
+                              } else {
+                                showAppSnackBar(
+                                  modalContext,
+                                  controller.errorMessage,
+                                  title: 'Gagal Memperbarui Promo',
+                                  backgroundColor: AppColors.danger,
+                                );
+                              }
                             } else {
+                              final titleText = titleCtrl.text;
                               final ok = await controller.createPromotion(
-                                title: titleCtrl.text,
+                                title: titleText,
                                 description: descCtrl.text,
                                 discountPercent: disc,
                                 targetTier: targetTier,
                                 startDate: startDate,
                                 endDate: endDate,
                               );
-                              if (ok) Get.back();
+                              if (!modalContext.mounted) return;
+                              if (ok) {
+                                Navigator.pop(modalContext);
+                                if (mounted) {
+                                  showAppSnackBar(
+                                    this.context,
+                                    'Promo "$titleText" berhasil dibuat untuk segmen $targetTier.',
+                                    title: 'Promo Diterbitkan',
+                                  );
+                                }
+                              } else {
+                                showAppSnackBar(
+                                  modalContext,
+                                  controller.errorMessage,
+                                  title: 'Gagal Membuat Promo',
+                                  backgroundColor: AppColors.danger,
+                                );
+                              }
                             }
                           },
                           child: Text(

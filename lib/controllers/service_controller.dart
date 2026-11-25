@@ -1,52 +1,58 @@
-import 'package:get/get.dart';
+import 'package:flutter/foundation.dart';
 import '../models/service_item.dart';
 import '../services/service_catalog_service.dart';
 
-class ServiceController extends GetxController {
-  final RxBool _isLoading = false.obs;
-  final RxList<ServiceCategory> _categories = <ServiceCategory>[].obs;
-  final RxList<ServiceItem> _services = <ServiceItem>[].obs;
-  final RxList<ServiceItem> _filteredServices = <ServiceItem>[].obs;
-  final RxString _selectedCategoryId = 'all'.obs;
+/// Singleton controller katalog kategori dan layanan barbershop.
+class ServiceController extends ChangeNotifier {
+  static final ServiceController _instance = ServiceController._internal();
+  factory ServiceController() => _instance;
+  ServiceController._internal();
 
-  bool get isLoading => _isLoading.value;
+  bool _isLoading = false;
+  List<ServiceCategory> _categories = [];
+  List<ServiceItem> _services = [];
+  List<ServiceItem> _filteredServices = [];
+  String _selectedCategoryId = 'all';
+
+  bool get isLoading => _isLoading;
   List<ServiceCategory> get categories => _categories;
   List<ServiceItem> get services => _filteredServices;
-  String get selectedCategoryId => _selectedCategoryId.value;
+  String get selectedCategoryId => _selectedCategoryId;
 
   final _serviceCatalogService = ServiceCatalogService();
 
-  @override
-  void onInit() {
-    retrieveCatalog();
-    super.onInit();
-  }
-
   Future<void> retrieveCatalog() async {
     try {
-      _isLoading.value = true;
+      _isLoading = true;
+      notifyListeners();
+
       final cats = await _serviceCatalogService.fetchCategories();
       final svcs = await _serviceCatalogService.fetchServices();
 
-      _categories.assignAll(cats);
-      _services.assignAll(svcs);
-      _filteredServices.assignAll(svcs);
-      _isLoading.value = false;
+      _categories = cats;
+      _services = svcs;
+      _applyCategoryFilter();
+      _isLoading = false;
+      notifyListeners();
     } catch (e) {
-      _isLoading.value = false;
+      _isLoading = false;
+      notifyListeners();
       throw Exception('Gagal memuat katalog layanan: $e');
     }
   }
 
   void filterByCategory(String categoryId) {
-    _selectedCategoryId.value = categoryId;
-    if (categoryId == 'all') {
-      _filteredServices.assignAll(_services);
+    _selectedCategoryId = categoryId;
+    _applyCategoryFilter();
+    notifyListeners();
+  }
+
+  void _applyCategoryFilter() {
+    if (_selectedCategoryId == 'all') {
+      _filteredServices = List.from(_services);
     } else {
-      _filteredServices.assignAll(
-        _services.where((s) => s.categoryId == categoryId).toList(),
-      );
+      _filteredServices =
+          _services.where((s) => s.categoryId == _selectedCategoryId).toList();
     }
   }
 }
-

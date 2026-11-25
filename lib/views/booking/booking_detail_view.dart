@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../config/theme.dart';
+import '../../config/ui_helpers.dart';
 import '../../controllers/booking_controller.dart';
 import '../../models/booking.dart';
+import '../customer_root_view.dart';
 
 class BookingDetailView extends StatelessWidget {
-  const BookingDetailView({super.key});
+  final Booking? booking;
+
+  const BookingDetailView({super.key, this.booking});
 
   @override
   Widget build(BuildContext context) {
-    final Booking? bookingArg = Get.arguments as Booking?;
-    final BookingController controller = Get.isRegistered<BookingController>()
-        ? Get.find<BookingController>()
-        : Get.put(BookingController());
+    final Booking? bookingArg = booking;
+    final BookingController controller = BookingController();
 
     if (bookingArg == null) {
       return Scaffold(
@@ -183,6 +184,7 @@ class BookingDetailView extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildDetailSection(
+                            context: context,
                             title: 'LOKASI CABANG',
                             content: bookingArg.branchName,
                             subContent: bookingArg.branchAddress,
@@ -195,6 +197,7 @@ class BookingDetailView extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: _buildDetailSection(
+                                  context: context,
                                   title: 'KAPSTER',
                                   content: bookingArg.barberName,
                                   subContent: bookingArg.barberPref == 'auto'
@@ -206,6 +209,7 @@ class BookingDetailView extends StatelessWidget {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _buildDetailSection(
+                                  context: context,
                                   title: 'DURASI',
                                   content: '${bookingArg.durationHours} Jam Bulat',
                                   subContent: 'Slot waktu terkunci',
@@ -217,6 +221,7 @@ class BookingDetailView extends StatelessWidget {
                           const Divider(height: 24, color: AppColors.hairline),
 
                           _buildDetailSection(
+                            context: context,
                             title: 'LAYANAN TERPILIH',
                             content: bookingArg.serviceName,
                             subContent: bookingArg.hairstyleName != null
@@ -231,6 +236,7 @@ class BookingDetailView extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: _buildDetailSection(
+                                  context: context,
                                   title: 'TANGGAL',
                                   content: bookingArg.formattedDate,
                                   icon: Icons.calendar_today_outlined,
@@ -239,6 +245,7 @@ class BookingDetailView extends StatelessWidget {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: _buildDetailSection(
+                                  context: context,
                                   title: 'JAM LAYANAN',
                                   content: bookingArg.formattedTimeRange,
                                   icon: Icons.access_time,
@@ -349,7 +356,7 @@ class BookingDetailView extends StatelessWidget {
 
                 if (bookingArg.canCancel)
                   OutlinedButton.icon(
-                    onPressed: () => controller.cancelBooking(bookingArg),
+                    onPressed: () => _handleCancelBooking(context, controller, bookingArg),
                     icon: const Icon(Icons.cancel_outlined, size: 18),
                     label: const Text('BATALKAN RESERVASI INI'),
                     style: OutlinedButton.styleFrom(
@@ -361,7 +368,11 @@ class BookingDetailView extends StatelessWidget {
 
               const SizedBox(height: 12),
               TextButton(
-                onPressed: () => Get.offAllNamed('/home'),
+                onPressed: () => Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CustomerRootView()),
+                  (route) => false,
+                ),
                 child: const Text('KEMBALI KE BERANDA'),
               ),
             ],
@@ -371,7 +382,53 @@ class BookingDetailView extends StatelessWidget {
     );
   }
 
+  Future<void> _handleCancelBooking(
+    BuildContext context,
+    BookingController controller,
+    Booking booking,
+  ) async {
+    if (!booking.canCancel) {
+      await showAppInfoDialog(
+        context,
+        title: 'Pembatalan Ditolak',
+        message:
+            'Sesuai ketentuan, pembatalan jadwal hanya dapat dilakukan minimal 2 jam (120 menit) sebelum waktu reservasi dimulai.',
+      );
+      return;
+    }
+
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: 'Batalkan Reservasi?',
+      message:
+          'Apakah Anda yakin ingin membatalkan jadwal di ${booking.branchName} pada ${booking.formattedTimeRange}?',
+      confirmLabel: 'Ya, Batalkan',
+      cancelLabel: 'Tidak',
+      confirmColor: AppColors.danger,
+    );
+    if (!confirmed) return;
+
+    final ok = await controller.executeCancelBooking(booking);
+    if (!context.mounted) return;
+    if (ok) {
+      showAppSnackBar(
+        context,
+        'Reservasi ${booking.code} telah berhasil dibatalkan.',
+        title: 'Berhasil Dibatalkan',
+      );
+      Navigator.pop(context);
+    } else {
+      showAppSnackBar(
+        context,
+        controller.errorMessage,
+        title: 'Gagal Membatalkan',
+        backgroundColor: AppColors.danger,
+      );
+    }
+  }
+
   Widget _buildDetailSection({
+    required BuildContext context,
     required String title,
     required String content,
     String? subContent,
@@ -389,7 +446,7 @@ class BookingDetailView extends StatelessWidget {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(Get.context!).textTheme.labelSmall?.copyWith(letterSpacing: 1.0),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.0),
               ),
             ),
           ],

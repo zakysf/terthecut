@@ -1,5 +1,5 @@
-import 'package:get/get.dart';
-import '../config/theme.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import '../models/booking.dart';
 import '../models/branch.dart';
 import '../models/profile.dart';
@@ -10,30 +10,40 @@ import '../services/loyalty_service.dart';
 import '../services/notification_service.dart';
 import 'auth_controller.dart';
 
-class AdminController extends GetxController {
+/// Singleton controller Panel Kasir & Operasional Admin (US-18, US-19, US-20).
+class AdminController extends ChangeNotifier {
+  static final AdminController _instance = AdminController._internal();
+  factory AdminController() => _instance;
+  AdminController._internal();
+
   final BookingService _bookingService = BookingService();
   final BranchService _branchService = BranchService();
   final LoyaltyService _loyaltyService = LoyaltyService();
   final AuthService _authService = AuthService();
   final NotificationService _notificationService = NotificationService();
 
-  final RxList<Branch> branches = <Branch>[].obs;
-  final RxString selectedBranchId = 'all'.obs;
-  final Rx<DateTime> selectedDate = Rx<DateTime>(DateTime.now());
-  final RxString statusFilter = 'all'.obs;
+  List<Branch> branches = [];
+  String selectedBranchId = 'all';
+  DateTime selectedDate = DateTime.now();
+  String statusFilter = 'all';
 
-  final RxList<Booking> scheduleBookings = <Booking>[].obs;
-  final RxBool isLoading = false.obs;
+  List<Booking> scheduleBookings = [];
+  bool isLoading = false;
+  String errorMessage = '';
 
   // Pencarian Cepat Pelanggan oleh Kasir dengan Debounce 300ms (US-20)
-  final RxList<Profile> searchedCustomers = <Profile>[].obs;
-  final RxBool isSearching = false.obs;
-  final RxString customerSearchQuery = ''.obs;
+  List<Profile> searchedCustomers = [];
+  bool isSearching = false;
+  String customerSearchQuery = '';
+  Timer? _searchDebounce;
 
   // Rekap Kasir
   int get totalToday => scheduleBookings.length;
-  int get pendingCount => scheduleBookings.where((b) => b.status == 'confirmed' || b.status == 'arrived').length;
-  int get completedCount => scheduleBookings.where((b) => b.status == 'completed').length;
+  int get pendingCount => scheduleBookings
+      .where((b) => b.status == 'confirmed' || b.status == 'arrived')
+      .length;
+  int get completedCount =>
+      scheduleBookings.where((b) => b.status == 'completed').length;
 
   int get totalRevenue => scheduleBookings
       .where((b) => b.status == 'completed')
@@ -44,160 +54,151 @@ class AdminController extends GetxController {
       .fold(0, (sum, b) => sum + b.servicePoints);
 
   List<Booking> get filteredBookings {
-    if (statusFilter.value == 'all') {
+    if (statusFilter == 'all') {
       return scheduleBookings;
     }
-    if (statusFilter.value == 'active' || statusFilter.value == 'confirmed') {
-      return scheduleBookings.where((b) => b.status == 'confirmed' || b.status == 'arrived').toList();
+    if (statusFilter == 'active' || statusFilter == 'confirmed') {
+      return scheduleBookings
+          .where((b) => b.status == 'confirmed' || b.status == 'arrived')
+          .toList();
     }
-    return scheduleBookings.where((b) => b.status == statusFilter.value).toList();
+    return scheduleBookings.where((b) => b.status == statusFilter).toList();
   }
 
-  @override
-  void onInit() {
-    super.onInit();
-    loadBranches();
-    loadSchedule();
+  /// Mengubah query pencarian pelanggan dengan debounce native 300 ms (US-20).
+  void onCustomerSearchChanged(String query) {
+    customerSearchQuery = query;
+    notifyListeners();
 
-    // Debounce pencarian pelanggan 300 ms (US-20)
-    debounce(
-      customerSearchQuery,
-      (query) => performCustomerSearch(query),
-      time: const Duration(milliseconds: 300),
-    );
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      performCustomerSearch(query);
+    });
   }
 
-  /// Menjalankan pencarian data pelanggan untuk kasir
+  /// Menjalankan pencarian data pelanggan untuk kasir.
   Future<void> performCustomerSearch(String query) async {
     final clean = query.trim();
     if (clean.isEmpty) {
-      searchedCustomers.clear();
-      isSearching.value = false;
+      searchedCustomers = [];
+      isSearching = false;
+      notifyListeners();
       return;
     }
 
     try {
-      isSearching.value = true;
-      final results = await _authService.searchCustomers(clean);
-      searchedCustomers.assignAll(results);
+      isSearching = true;
+      notifyListeners();
+
+      searchedCustomers = await _authService.searchCustomers(clean);
     } catch (_) {
-      searchedCustomers.clear();
+      searchedCustomers = [];
     } finally {
-      isSearching.value = false;
+      isSearching = false;
+      notifyListeners();
     }
   }
 
   Future<void> loadBranches() async {
     try {
-      final list = await _branchService.fetchBranches();
-      branches.assignAll(list);
+      branches = await _branchService.fetchBranches();
+      notifyListeners();
     } catch (_) {}
   }
 
   Future<void> loadSchedule() async {
-    isLoading.value = true;
+    isLoading = true;
+    notifyListeners();
     try {
-      final list = await _bookingService.fetchAdminDailySchedule(
-        branchId: selectedBranchId.value == 'all' ? null : selectedBranchId.value,
-        date: selectedDate.value,
+      scheduleBookings = await _bookingService.fetchAdminDailySchedule(
+        branchId: selectedBranchId == 'all' ? null : selectedBranchId,
+        date: selectedDate,
       );
-      scheduleBookings.assignAll(list);
     } finally {
-      isLoading.value = false;
+      isLoading = false;
+      notifyListeners();
     }
   }
 
   void changeBranch(String branchId) {
-    selectedBranchId.value = branchId;
+    selectedBranchId = branchId;
+    notifyListeners();
     loadSchedule();
   }
 
   void changeDate(DateTime date) {
-    selectedDate.value = date;
+    selectedDate = date;
+    notifyListeners();
     loadSchedule();
   }
 
   void setStatusFilter(String status) {
-    statusFilter.value = status;
+    statusFilter = status;
+    notifyListeners();
   }
 
-  /// Admin/Kasir menandai pelanggan Datang / Tiba di lokasi (US-19)
-  Future<void> markBookingArrived(Booking booking) async {
+  /// Admin/Kasir menandai pelanggan Datang / Tiba di lokasi (US-19).
+  Future<bool> markBookingArrived(Booking booking) async {
     try {
+      errorMessage = '';
       await _bookingService.markBookingArrived(booking.id);
       await loadSchedule();
-      Get.snackbar(
-        'Pelanggan Hadir',
-        '${booking.customerName ?? "Pelanggan"} telah ditandai Hadir di cabang.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.ink,
-        colorText: AppColors.paper,
-      );
+      return true;
     } catch (e) {
-      Get.snackbar('Gagal', e.toString());
+      errorMessage = e.toString();
+      notifyListeners();
+      return false;
     }
   }
 
-  /// Admin/Kasir menyelesaikan pengerjaan layanan & membukukan transaksi secara otomatis (US-19)
-  Future<void> completeBooking(Booking booking) async {
-    Get.defaultDialog(
-      title: 'Konfirmasi Kasir',
-      middleText:
-          'Selesaikan layanan ${booking.serviceName}?\nTransaksi Rp ${booking.servicePrice} akan dibukukan dan +${booking.servicePoints} Poin akan otomatis ditambahkan ke akun pelanggan.',
-      textConfirm: 'Ya, Selesaikan',
-      textCancel: 'Batal',
-      confirmTextColor: AppColors.paper,
-      buttonColor: AppColors.success,
-      onConfirm: () async {
-        Get.back();
-        try {
-          await _bookingService.completeBooking(booking: booking);
+  /// Admin/Kasir menyelesaikan pengerjaan layanan & membukukan transaksi otomatis (US-19).
+  Future<bool> executeCompleteBooking(Booking booking) async {
+    try {
+      errorMessage = '';
+      await _bookingService.completeBooking(booking: booking);
 
-          // Catat juga ke loyalty service mock jika ada
-          _loyaltyService.recordPointEarning(
-            customerId: booking.customerId,
-            points: booking.servicePoints,
-            serviceName: booking.serviceName,
-          );
+      // Catat juga ke loyalty service mock jika ada
+      _loyaltyService.recordPointEarning(
+        customerId: booking.customerId,
+        points: booking.servicePoints,
+        serviceName: booking.serviceName,
+      );
 
-          // Update profile pelanggan jika pelanggan yang sama sedang login
-          if (Get.isRegistered<AuthController>()) {
-            final auth = Get.find<AuthController>();
-            if (auth.currentProfile?.id == booking.customerId ||
-                (booking.customerPhone != null && auth.currentProfile?.phone == booking.customerPhone)) {
-              final curr = auth.currentProfile!;
-              auth.updateCurrentProfile(
-                curr.copyWith(
-                  pointsBalance: curr.pointsBalance + booking.servicePoints,
-                  lifetimePoints: curr.lifetimePoints + booking.servicePoints,
-                ),
-              );
-            }
-          }
+      // Update profile pelanggan jika pelanggan yang sama sedang login
+      final auth = AuthController();
+      if (auth.currentProfile?.id == booking.customerId ||
+          (booking.customerPhone != null &&
+              auth.currentProfile?.phone == booking.customerPhone)) {
+        final curr = auth.currentProfile!;
+        auth.updateCurrentProfile(
+          curr.copyWith(
+            pointsBalance: curr.pointsBalance + booking.servicePoints,
+            lifetimePoints: curr.lifetimePoints + booking.servicePoints,
+          ),
+        );
+      }
 
-          // Terbitkan notifikasi in-app ke pelanggan (US-21)
-          _notificationService.createNotification(
-            userId: booking.customerId,
-            title: 'Layanan Selesai (+${booking.servicePoints} Poin)',
-            message:
-                'Layanan ${booking.serviceName} di cabang ${booking.branchName} telah selesai. Poin loyalitas Anda otomatis bertambah.',
-            type: 'points',
-          );
+      // Terbitkan notifikasi in-app ke pelanggan (US-21)
+      _notificationService.createNotification(
+        userId: booking.customerId,
+        title: 'Layanan Selesai (+${booking.servicePoints} Poin)',
+        message:
+            'Layanan ${booking.serviceName} di cabang ${booking.branchName} telah selesai. Poin loyalitas Anda otomatis bertambah.',
+        type: 'points',
+      );
 
-          await loadSchedule();
+      await loadSchedule();
+      return true;
+    } catch (e) {
+      errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
 
-          Get.snackbar(
-            'Layanan Selesai',
-            'Booking ${booking.code} telah diselesaikan. Transaksi & +${booking.servicePoints} poin berhasil dicatat!',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: AppColors.success,
-            colorText: AppColors.paper,
-            duration: const Duration(seconds: 4),
-          );
-        } catch (e) {
-          Get.snackbar('Gagal', e.toString());
-        }
-      },
-    );
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
   }
 }

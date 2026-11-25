@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../config/theme.dart';
+import '../../config/ui_helpers.dart';
 import '../../controllers/booking_controller.dart';
 import '../../models/booking.dart';
+import 'booking_detail_view.dart';
+import 'booking_wizard_view.dart';
 
-class MyBookingsView extends StatelessWidget {
+class MyBookingsView extends StatefulWidget {
   final bool showBackButton;
-  MyBookingsView({super.key, this.showBackButton = true});
+  const MyBookingsView({super.key, this.showBackButton = true});
 
-  final BookingController _controller = Get.isRegistered<BookingController>()
-      ? Get.find<BookingController>()
-      : Get.put(BookingController());
+  @override
+  State<MyBookingsView> createState() => _MyBookingsViewState();
+}
+
+class _MyBookingsViewState extends State<MyBookingsView> {
+  final BookingController _controller = BookingController();
 
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
@@ -21,17 +26,61 @@ class MyBookingsView extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _controller.loadMyBookings();
     });
+  }
 
+  Future<void> _handleCancelBooking(Booking booking) async {
+    if (!booking.canCancel) {
+      await showAppInfoDialog(
+        context,
+        title: 'Pembatalan Ditolak',
+        message:
+            'Sesuai ketentuan, pembatalan jadwal hanya dapat dilakukan minimal 2 jam (120 menit) sebelum waktu reservasi dimulai.',
+      );
+      return;
+    }
+
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: 'Batalkan Reservasi?',
+      message:
+          'Apakah Anda yakin ingin membatalkan jadwal di ${booking.branchName} pada ${booking.formattedTimeRange}?',
+      confirmLabel: 'Ya, Batalkan',
+      cancelLabel: 'Tidak',
+      confirmColor: AppColors.danger,
+    );
+    if (!confirmed) return;
+
+    final ok = await _controller.executeCancelBooking(booking);
+    if (!mounted) return;
+    if (ok) {
+      showAppSnackBar(
+        context,
+        'Reservasi ${booking.code} telah berhasil dibatalkan.',
+        title: 'Berhasil Dibatalkan',
+      );
+    } else {
+      showAppSnackBar(
+        context,
+        _controller.errorMessage,
+        title: 'Gagal Membatalkan',
+        backgroundColor: AppColors.danger,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         backgroundColor: AppColors.paper,
         appBar: AppBar(
-          automaticallyImplyLeading: showBackButton,
+          automaticallyImplyLeading: widget.showBackButton,
           title: Text(
             'BOOKING SAYA',
             style: GoogleFonts.playfairDisplay(
@@ -42,44 +91,53 @@ class MyBookingsView extends StatelessWidget {
           ),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(48),
-            child: Obx(() {
-              final upcomingCount = _controller.upcomingBookings.length;
-              final historyCount = _controller.historyBookings.length;
-              return TabBar(
-                labelColor: AppColors.ink,
-                unselectedLabelColor: AppColors.inkSoft,
-                indicatorColor: AppColors.accent,
-                indicatorWeight: 3,
-                labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
-                tabs: [
-                  Tab(text: 'Akan Datang ($upcomingCount)'),
-                  Tab(text: 'Riwayat Selesai ($historyCount)'),
-                ],
-              );
-            }),
+            child: ListenableBuilder(
+              listenable: _controller,
+              builder: (context, _) {
+                final upcomingCount = _controller.upcomingBookings.length;
+                final historyCount = _controller.historyBookings.length;
+                return TabBar(
+                  labelColor: AppColors.ink,
+                  unselectedLabelColor: AppColors.inkSoft,
+                  indicatorColor: AppColors.accent,
+                  indicatorWeight: 3,
+                  labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+                  tabs: [
+                    Tab(text: 'Akan Datang ($upcomingCount)'),
+                    Tab(text: 'Riwayat Selesai ($historyCount)'),
+                  ],
+                );
+              },
+            ),
           ),
         ),
         body: SafeArea(
-          child: Obx(() {
-            if (_controller.isLoadingBookings.value) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.ink));
-            }
+          child: ListenableBuilder(
+            listenable: _controller,
+            builder: (context, _) {
+              if (_controller.isLoadingBookings) {
+                return const Center(child: CircularProgressIndicator(color: AppColors.ink));
+              }
 
-            final upcoming = _controller.upcomingBookings;
-            final history = _controller.historyBookings;
+              final upcoming = _controller.upcomingBookings;
+              final history = _controller.historyBookings;
 
-            return TabBarView(
-              children: [
-                _buildBookingList(upcoming, isUpcoming: true),
-                _buildBookingList(history, isUpcoming: false),
-              ],
-            );
-          }),
+              return TabBarView(
+                children: [
+                  _buildBookingList(context, upcoming, isUpcoming: true),
+                  _buildBookingList(context, history, isUpcoming: false),
+                ],
+              );
+            },
+          ),
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () {
             _controller.initWizard();
-            Get.toNamed('/booking-wizard');
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const BookingWizardView()),
+            );
           },
           backgroundColor: AppColors.ink,
           icon: const Icon(Icons.add, color: AppColors.paper),
@@ -96,7 +154,11 @@ class MyBookingsView extends StatelessWidget {
     );
   }
 
-  Widget _buildBookingList(List<Booking> bookings, {required bool isUpcoming}) {
+  Widget _buildBookingList(
+    BuildContext context,
+    List<Booking> bookings, {
+    required bool isUpcoming,
+  }) {
     if (bookings.isEmpty) {
       return Center(
         child: Padding(
@@ -156,7 +218,10 @@ class MyBookingsView extends StatelessWidget {
                 ElevatedButton(
                   onPressed: () {
                     _controller.initWizard();
-                    Get.toNamed('/booking-wizard');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BookingWizardView()),
+                    );
                   },
                   child: const Text('RESERVASI SEKARANG'),
                 ),
@@ -175,13 +240,13 @@ class MyBookingsView extends StatelessWidget {
         itemCount: bookings.length,
         itemBuilder: (context, index) {
           final booking = bookings[index];
-          return _buildBookingCard(booking, isUpcoming);
+          return _buildBookingCard(context, booking, isUpcoming);
         },
       ),
     );
   }
 
-  Widget _buildBookingCard(Booking booking, bool isUpcoming) {
+  Widget _buildBookingCard(BuildContext context, Booking booking, bool isUpcoming) {
     Color statusColor;
     Color statusBgColor;
 
@@ -210,7 +275,10 @@ class MyBookingsView extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: InkWell(
-        onTap: () => Get.toNamed('/booking-detail', arguments: booking),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => BookingDetailView(booking: booking)),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(
@@ -333,16 +401,12 @@ class MyBookingsView extends StatelessWidget {
                       if (isUpcoming && booking.status == 'confirmed') ...[
                         OutlinedButton(
                           onPressed: booking.canCancel
-                              ? () => _controller.cancelBooking(booking)
-                              : () {
-                                  Get.snackbar(
-                                    'Pembatalan Ditolak',
+                              ? () => _handleCancelBooking(booking)
+                              : () => showAppSnackBar(
+                                    context,
                                     'Sesuai ketentuan, pembatalan hanya dapat dilakukan minimal 2 jam sebelum jadwal dimulai.',
-                                    snackPosition: SnackPosition.BOTTOM,
-                                    backgroundColor: AppColors.ink,
-                                    colorText: AppColors.paper,
-                                  );
-                                },
+                                    title: 'Pembatalan Ditolak',
+                                  ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: booking.canCancel ? AppColors.danger : AppColors.inkSoft,
                             side: BorderSide(
@@ -358,7 +422,10 @@ class MyBookingsView extends StatelessWidget {
                         const SizedBox(width: 8),
                       ],
                       ElevatedButton(
-                        onPressed: () => Get.toNamed('/booking-detail', arguments: booking),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => BookingDetailView(booking: booking)),
+                        ),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         ),

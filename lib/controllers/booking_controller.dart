@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import '../config/theme.dart';
+import 'package:flutter/foundation.dart';
 import '../models/booking.dart';
 import '../models/branch.dart';
 import '../models/barber.dart';
@@ -13,32 +11,37 @@ import '../services/loyalty_service.dart';
 import '../services/notification_service.dart';
 import 'auth_controller.dart';
 
-class BookingController extends GetxController {
+/// Singleton controller wizard reservasi 6 langkah dan daftar booking pelanggan.
+class BookingController extends ChangeNotifier {
+  static final BookingController _instance = BookingController._internal();
+  factory BookingController() => _instance;
+  BookingController._internal();
+
   final BookingService _bookingService = BookingService();
   final BranchService _branchService = BranchService();
   final LoyaltyService _loyaltyService = LoyaltyService();
 
   // Step Wizard: 0 = Cabang, 1 = Kapster, 2 = Layanan, 3 = Gaya Rambut, 4 = Waktu, 5 = Konfirmasi
-  final RxInt currentStep = 0.obs;
+  int currentStep = 0;
 
   // Pilihan Pengguna
-  final Rxn<Branch> selectedBranch = Rxn<Branch>();
-  final Rxn<Barber> selectedBarber = Rxn<Barber>();
-  final RxBool isAutoAssign = false.obs;
-  final Rxn<ServiceItem> selectedService = Rxn<ServiceItem>();
-  final Rxn<Hairstyle> selectedHairstyle = Rxn<Hairstyle>();
-  final Rx<DateTime> selectedDate = Rx<DateTime>(DateTime.now());
-  final Rxn<TimeSlot> selectedSlot = Rxn<TimeSlot>();
+  Branch? selectedBranch;
+  Barber? selectedBarber;
+  bool isAutoAssign = false;
+  ServiceItem? selectedService;
+  Hairstyle? selectedHairstyle;
+  DateTime selectedDate = DateTime.now();
+  TimeSlot? selectedSlot;
 
   // State Voucher Diskon
-  final Rxn<RewardRedemption> appliedVoucher = Rxn<RewardRedemption>();
-  final RxList<RewardRedemption> usableVouchers = <RewardRedemption>[].obs;
-  final RxBool isLoadingVouchers = false.obs;
+  RewardRedemption? appliedVoucher;
+  List<RewardRedemption> usableVouchers = [];
+  bool isLoadingVouchers = false;
 
-  /// Nilai diskon dari voucher yang dipilih
+  /// Nilai diskon dari voucher yang dipilih.
   int get discountAmount {
-    final voucher = appliedVoucher.value;
-    final service = selectedService.value;
+    final voucher = appliedVoucher;
+    final service = selectedService;
     if (voucher == null || service == null) return 0;
 
     final name = voucher.rewardName.toLowerCase();
@@ -50,30 +53,30 @@ class BookingController extends GetxController {
     return 10000 > service.price ? service.price : 10000;
   }
 
-  /// Total harga layanan setelah potongan voucher diskon
+  /// Total harga layanan setelah potongan voucher diskon.
   int get finalPrice {
-    final orig = selectedService.value?.price ?? 0;
+    final orig = selectedService?.price ?? 0;
     final disc = discountAmount;
     final res = orig - disc;
     return res > 0 ? res : 0;
   }
 
   // State Kapster & Slot
-  final RxList<Barber> branchBarbers = <Barber>[].obs;
-  final RxBool isLoadingBarbers = false.obs;
-  final RxList<TimeSlot> availableSlots = <TimeSlot>[].obs;
-  final RxBool isLoadingSlots = false.obs;
+  List<Barber> branchBarbers = [];
+  bool isLoadingBarbers = false;
+  List<TimeSlot> availableSlots = [];
+  bool isLoadingSlots = false;
 
   // State Proses & Riwayat
-  final RxBool isSubmitting = false.obs;
-  final RxString errorMessage = ''.obs;
-  final RxList<Booking> myBookings = <Booking>[].obs;
-  final RxBool isLoadingBookings = false.obs;
+  bool isSubmitting = false;
+  String errorMessage = '';
+  List<Booking> myBookings = [];
+  bool isLoadingBookings = false;
 
   // Pemesanan terakhir yang baru dibuat
-  final Rxn<Booking> lastCreatedBooking = Rxn<Booking>();
+  Booking? lastCreatedBooking;
 
-  /// Daftar 5 hari ke depan (H+0 sampai H+4) sesuai US-08
+  /// Daftar 5 hari ke depan (H+0 sampai H+4) sesuai US-08.
   List<DateTime> get availableDates {
     final now = DateTime.now();
     return List.generate(5, (index) {
@@ -81,218 +84,222 @@ class BookingController extends GetxController {
     });
   }
 
-  /// Memfilter booking yang berstatus akan datang (Upcoming)
+  /// Memfilter booking yang berstatus akan datang (Upcoming).
   List<Booking> get upcomingBookings {
     return myBookings.where((b) => b.status == 'confirmed' || b.status == 'arrived').toList();
   }
 
-  /// Memfilter booking yang sudah selesai atau dibatalkan (History)
+  /// Memfilter booking yang sudah selesai atau dibatalkan (History).
   List<Booking> get historyBookings {
     return myBookings.where((b) => b.status == 'completed' || b.status == 'cancelled').toList();
   }
 
-  @override
-  void onInit() {
-    super.onInit();
-    loadMyBookings();
-  }
-
-  /// Inisialisasi wizard booking baru
+  /// Inisialisasi wizard booking baru.
   void initWizard({
     Branch? initialBranch,
     ServiceItem? initialService,
     Hairstyle? initialHairstyle,
   }) {
-    currentStep.value = 0;
-    selectedBranch.value = initialBranch;
-    selectedBarber.value = null;
-    isAutoAssign.value = false;
-    selectedService.value = initialService;
-    selectedHairstyle.value = initialHairstyle;
-    selectedDate.value = DateTime.now();
-    selectedSlot.value = null;
-    appliedVoucher.value = null;
-    usableVouchers.clear();
-    errorMessage.value = '';
-    branchBarbers.clear();
-    availableSlots.clear();
+    currentStep = 0;
+    selectedBranch = initialBranch;
+    selectedBarber = null;
+    isAutoAssign = false;
+    selectedService = initialService;
+    selectedHairstyle = initialHairstyle;
+    selectedDate = DateTime.now();
+    selectedSlot = null;
+    appliedVoucher = null;
+    usableVouchers = [];
+    errorMessage = '';
+    branchBarbers = [];
+    availableSlots = [];
 
     if (initialBranch != null) {
+      currentStep = 1; // Lompat ke pilih kapster jika cabang sudah dipilih
       loadBranchBarbers(initialBranch.id);
-      currentStep.value = 1; // Lompat ke pilih kapster jika cabang sudah dipilih
     }
+    notifyListeners();
   }
 
-  /// Memilih Cabang dan memuat kapster bertugas
+  /// Memilih Cabang dan memuat kapster bertugas.
   Future<void> selectBranch(Branch branch) async {
-    selectedBranch.value = branch;
-    selectedBarber.value = null;
-    isAutoAssign.value = false;
-    selectedSlot.value = null;
+    selectedBranch = branch;
+    selectedBarber = null;
+    isAutoAssign = false;
+    selectedSlot = null;
+    notifyListeners();
+
     await loadBranchBarbers(branch.id);
-    currentStep.value = 1;
+    currentStep = 1;
+    notifyListeners();
   }
 
-  /// Memuat 2 kapster spesifik cabang
+  /// Memuat 2 kapster spesifik cabang.
   Future<void> loadBranchBarbers(String branchId) async {
-    isLoadingBarbers.value = true;
+    isLoadingBarbers = true;
+    notifyListeners();
     try {
-      final barbers = await _branchService.fetchBarbersByBranch(branchId);
-      branchBarbers.assignAll(barbers);
+      branchBarbers = await _branchService.fetchBarbersByBranch(branchId);
     } finally {
-      isLoadingBarbers.value = false;
+      isLoadingBarbers = false;
+      notifyListeners();
     }
   }
 
-  /// Memilih Kapster atau opsi Auto-Assign
+  /// Memilih Kapster atau opsi Auto-Assign.
   void selectBarber(Barber? barber, {bool auto = false}) {
     if (auto) {
-      isAutoAssign.value = true;
-      selectedBarber.value = null;
+      isAutoAssign = true;
+      selectedBarber = null;
     } else {
-      isAutoAssign.value = false;
-      selectedBarber.value = barber;
+      isAutoAssign = false;
+      selectedBarber = barber;
     }
-    selectedSlot.value = null;
-    currentStep.value = 2; // Lanjut ke pilih layanan
+    selectedSlot = null;
+    currentStep = 2; // Lanjut ke pilih layanan
+    notifyListeners();
   }
 
-  /// Memilih Layanan
+  /// Memilih Layanan.
   void selectService(ServiceItem service) {
-    selectedService.value = service;
-    selectedSlot.value = null;
-    currentStep.value = 3; // Lanjut ke inspirasi rambut (opsional)
+    selectedService = service;
+    selectedSlot = null;
+    currentStep = 3; // Lanjut ke inspirasi rambut (opsional)
+    notifyListeners();
   }
 
-  /// Memilih Gaya Rambut (opsional)
+  /// Memilih Gaya Rambut (opsional).
   void selectHairstyle(Hairstyle? hairstyle) {
-    selectedHairstyle.value = hairstyle;
-    currentStep.value = 4; // Lanjut ke pilih tanggal & jam
+    selectedHairstyle = hairstyle;
+    currentStep = 4; // Lanjut ke pilih tanggal & jam
+    notifyListeners();
     loadAvailableSlots();
   }
 
-  /// Lewati pemilihan gaya rambut
+  /// Lewati pemilihan gaya rambut.
   void skipHairstyle() {
-    selectedHairstyle.value = null;
-    currentStep.value = 4;
+    selectedHairstyle = null;
+    currentStep = 4;
+    notifyListeners();
     loadAvailableSlots();
   }
 
-  /// Memilih Tanggal (H+0 s/d H+4)
+  /// Memilih Tanggal (H+0 s/d H+4).
   void selectDate(DateTime date) {
-    selectedDate.value = date;
-    selectedSlot.value = null;
+    selectedDate = date;
+    selectedSlot = null;
+    notifyListeners();
     loadAvailableSlots();
   }
 
-  /// Memilih Slot Waktu
+  /// Memilih Slot Waktu.
   void selectSlot(TimeSlot slot) {
     if (!slot.isAvailable) return;
-    selectedSlot.value = slot;
+    selectedSlot = slot;
+    notifyListeners();
   }
 
-  /// Menghitung ketersediaan slot jam 1 jam bulat (10:00 - 21:00)
+  /// Menghitung ketersediaan slot jam 1 jam bulat (10:00 - 21:00).
   Future<void> loadAvailableSlots() async {
-    final branch = selectedBranch.value;
-    final service = selectedService.value;
+    final branch = selectedBranch;
+    final service = selectedService;
     if (branch == null || service == null) return;
 
-    isLoadingSlots.value = true;
-    errorMessage.value = '';
+    isLoadingSlots = true;
+    errorMessage = '';
+    notifyListeners();
 
     try {
-      final slots = await _bookingService.calculateAvailableSlots(
+      availableSlots = await _bookingService.calculateAvailableSlots(
         branchId: branch.id,
         branchBarbers: branchBarbers,
-        selectedBarberId: isAutoAssign.value ? null : selectedBarber.value?.id,
+        selectedBarberId: isAutoAssign ? null : selectedBarber?.id,
         durationHours: service.durationHours,
-        date: selectedDate.value,
+        date: selectedDate,
       );
-      availableSlots.assignAll(slots);
     } catch (e) {
-      errorMessage.value = 'Gagal memuat slot jadwal: $e';
+      errorMessage = 'Gagal memuat slot jadwal: $e';
     } finally {
-      isLoadingSlots.value = false;
+      isLoadingSlots = false;
+      notifyListeners();
     }
   }
 
-  /// Lanjut ke ringkasan konfirmasi
-  void proceedToSummary() {
-    if (selectedSlot.value == null) {
-      Get.snackbar(
-        'Pilih Jam',
-        'Silakan tentukan jam jadwal potong rambut terlebih dahulu.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.ink,
-        colorText: AppColors.paper,
-      );
-      return;
+  /// Lanjut ke ringkasan konfirmasi. Mengembalikan `false` jika slot belum dipilih.
+  bool proceedToSummary() {
+    if (selectedSlot == null) {
+      errorMessage = 'Silakan tentukan jam jadwal potong rambut terlebih dahulu.';
+      notifyListeners();
+      return false;
     }
+    errorMessage = '';
     loadUsableVouchers();
-    currentStep.value = 5;
+    currentStep = 5;
+    notifyListeners();
+    return true;
   }
 
-  /// Memuat voucher aktif yang dapat digunakan pelanggan
+  /// Memuat voucher aktif yang dapat digunakan pelanggan.
   Future<void> loadUsableVouchers() async {
-    final authController = Get.isRegistered<AuthController>()
-        ? Get.find<AuthController>()
-        : Get.put(AuthController(), permanent: true);
-    final customerId = authController.currentProfile?.id;
+    final customerId = AuthController().currentProfile?.id;
     if (customerId == null) return;
 
-    isLoadingVouchers.value = true;
+    isLoadingVouchers = true;
+    notifyListeners();
     try {
       final list = await _loyaltyService.fetchCustomerVouchers(customerId);
-      usableVouchers.assignAll(list.where((v) => v.isUsable).toList());
+      usableVouchers = list.where((v) => v.isUsable).toList();
     } catch (_) {
-      usableVouchers.clear();
+      usableVouchers = [];
     } finally {
-      isLoadingVouchers.value = false;
+      isLoadingVouchers = false;
+      notifyListeners();
     }
   }
 
-  /// Memilih / menerapkan voucher diskon
+  /// Memilih / menerapkan voucher diskon.
   void applyVoucher(RewardRedemption? voucher) {
-    appliedVoucher.value = voucher;
+    appliedVoucher = voucher;
+    notifyListeners();
   }
 
-  /// Membatalkan voucher diskon terpilih
+  /// Membatalkan voucher diskon terpilih.
   void removeVoucher() {
-    appliedVoucher.value = null;
+    appliedVoucher = null;
+    notifyListeners();
   }
 
-  /// Navigasi kembali satu langkah pada wizard
+  /// Navigasi kembali satu langkah pada wizard.
   void previousStep() {
-    if (currentStep.value > 0) {
-      currentStep.value--;
+    if (currentStep > 0) {
+      currentStep--;
+      notifyListeners();
     }
   }
 
-  /// Eksekusi Konfirmasi Booking (US-09)
-  Future<void> confirmBooking() async {
-    final branch = selectedBranch.value;
-    final service = selectedService.value;
-    final slot = selectedSlot.value;
+  /// Eksekusi Konfirmasi Booking (US-09). Mengembalikan [Booking] jika sukses, `null` jika gagal.
+  Future<Booking?> confirmBooking() async {
+    final branch = selectedBranch;
+    final service = selectedService;
+    final slot = selectedSlot;
 
     if (branch == null || service == null || slot == null) {
-      Get.snackbar('Perhatian', 'Data pemesanan belum lengkap.');
-      return;
+      errorMessage = 'Data pemesanan belum lengkap.';
+      notifyListeners();
+      return null;
     }
 
-    final authController = Get.isRegistered<AuthController>()
-        ? Get.find<AuthController>()
-        : Get.put(AuthController(), permanent: true);
-
-    final currentProfile = authController.currentProfile;
+    final currentProfile = AuthController().currentProfile;
     final customerId = currentProfile?.id ?? 'demo-user-1';
     final customerName = currentProfile?.name ?? 'Pelanggan Ter The Cut';
     final customerPhone = currentProfile?.phone ?? '';
 
-    final slotDate = selectedDate.value;
+    final slotDate = selectedDate;
     final startsAt = DateTime(slotDate.year, slotDate.month, slotDate.day, slot.hour, 0, 0);
 
-    isSubmitting.value = true;
-    errorMessage.value = '';
+    isSubmitting = true;
+    errorMessage = '';
+    notifyListeners();
 
     try {
       final booking = await _bookingService.createBooking(
@@ -303,25 +310,25 @@ class BookingController extends GetxController {
         branchName: branch.name,
         branchAddress: branch.address,
         branchBarbers: branchBarbers,
-        selectedBarberId: isAutoAssign.value ? null : selectedBarber.value?.id,
+        selectedBarberId: isAutoAssign ? null : selectedBarber?.id,
         serviceId: service.id,
         serviceName: service.name,
         servicePrice: finalPrice,
         servicePoints: service.points,
         durationHours: service.durationHours,
-        hairstyleId: selectedHairstyle.value?.id,
-        hairstyleName: selectedHairstyle.value?.name,
+        hairstyleId: selectedHairstyle?.id,
+        hairstyleName: selectedHairstyle?.name,
         startsAt: startsAt,
       );
 
       // Tandai voucher telah digunakan jika ada voucher diskon yang diterapkan
-      final usedVoucher = appliedVoucher.value;
+      final usedVoucher = appliedVoucher;
       if (usedVoucher != null) {
         await _loyaltyService.useVoucher(usedVoucher.voucherCode);
-        appliedVoucher.value = null;
+        appliedVoucher = null;
       }
 
-      lastCreatedBooking.value = booking;
+      lastCreatedBooking = booking;
       await loadMyBookings();
 
       // Terbitkan notifikasi in-app ke pelanggan (US-21)
@@ -333,169 +340,76 @@ class BookingController extends GetxController {
         type: 'booking',
       );
 
-      // Tampilkan dialog berhasil dengan estetika Editorial
-      Get.dialog(
-        Dialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.check, color: AppColors.accent, size: 36),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  'RESERVASI BERHASIL',
-                  style: Theme.of(Get.context!).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Kode Booking Anda:',
-                  style: Theme.of(Get.context!).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.ink,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    booking.code,
-                    style: const TextStyle(
-                      fontFamily: 'Playfair Display',
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 3.0,
-                      color: AppColors.paper,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '${booking.branchName}\n${booking.formattedDate}\n${booking.formattedTimeRange}',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(Get.context!).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    Get.back(); // Tutup dialog
-                    Get.offNamed('/booking-detail', arguments: booking);
-                  },
-                  child: const Text('LIHAT DETAIL TIKET'),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () {
-                    Get.back();
-                    Get.offAllNamed('/home');
-                  },
-                  child: const Text('KEMBALI KE BERANDA'),
-                ),
-              ],
-            ),
-          ),
-        ),
-        barrierDismissible: false,
-      );
+      return booking;
     } catch (e) {
-      final msg = e.toString().replaceAll('Exception: ', '');
-      errorMessage.value = msg;
-      Get.snackbar(
-        'Pemesanan Gagal',
-        msg,
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.danger,
-        colorText: AppColors.paper,
-        duration: const Duration(seconds: 4),
-      );
+      errorMessage = e.toString().replaceAll('Exception: ', '');
       // Jika terjadi bentrok, refresh slot agar slot yang terisi segera ter-update
       loadAvailableSlots();
+      notifyListeners();
+      return null;
     } finally {
-      isSubmitting.value = false;
+      isSubmitting = false;
+      notifyListeners();
     }
   }
 
-  /// Memuat riwayat booking milik pengguna yang sedang login
+  /// Memuat riwayat booking milik pengguna yang sedang login.
   Future<void> loadMyBookings() async {
-    final authController = Get.isRegistered<AuthController>()
-        ? Get.find<AuthController>()
-        : Get.put(AuthController(), permanent: true);
+    final profile = AuthController().currentProfile;
+    final customerId = profile?.id ?? 'demo-user-1';
+    final customerPhone = profile?.phone;
 
-    final customerId = authController.currentProfile?.id ?? 'demo-user-1';
-    final customerPhone = authController.currentProfile?.phone;
-
-    isLoadingBookings.value = true;
+    isLoadingBookings = true;
+    notifyListeners();
     try {
-      final list = await _bookingService.fetchCustomerBookings(
+      myBookings = await _bookingService.fetchCustomerBookings(
         customerId,
         customerPhone: customerPhone,
       );
-      myBookings.assignAll(list);
     } finally {
-      isLoadingBookings.value = false;
+      isLoadingBookings = false;
+      notifyListeners();
     }
   }
 
-  /// Membatalkan reservasi (US-10)
-  Future<void> cancelBooking(Booking booking, {String reason = 'Dibatalkan oleh pelanggan'}) async {
+  /// Eksekusi pembatalan reservasi (US-10) setelah dikonfirmasi oleh pengguna.
+  Future<bool> executeCancelBooking(
+    Booking booking, {
+    String reason = 'Dibatalkan oleh pelanggan',
+  }) async {
     if (!booking.canCancel) {
-      Get.defaultDialog(
-        title: 'Pembatalan Ditolak',
-        middleText:
-            'Sesuai ketentuan, pembatalan jadwal hanya dapat dilakukan minimal 2 jam (120 menit) sebelum waktu reservasi dimulai.',
-        textConfirm: 'Mengerti',
-        confirmTextColor: AppColors.paper,
-        buttonColor: AppColors.ink,
-        onConfirm: () => Get.back(),
-      );
-      return;
+      errorMessage =
+          'Sesuai ketentuan, pembatalan jadwal hanya dapat dilakukan minimal 2 jam (120 menit) sebelum waktu reservasi dimulai.';
+      notifyListeners();
+      return false;
     }
 
-    // Konfirmasi dialog
-    Get.defaultDialog(
-      title: 'Batalkan Reservasi?',
-      middleText:
-          'Apakah Anda yakin ingin membatalkan jadwal di ${booking.branchName} pada ${booking.formattedTimeRange}?',
-      textConfirm: 'Ya, Batalkan',
-      textCancel: 'Tidak',
-      confirmTextColor: AppColors.paper,
-      buttonColor: AppColors.danger,
-      onConfirm: () async {
-        Get.back();
-        try {
-          await _bookingService.cancelBooking(booking: booking, reason: reason);
-          await loadMyBookings();
+    try {
+      errorMessage = '';
+      await _bookingService.cancelBooking(booking: booking, reason: reason);
+      await loadMyBookings();
 
-          // Terbitkan notifikasi in-app pembatalan (US-21)
-          NotificationService().createNotification(
-            userId: booking.customerId,
-            title: 'Reservasi Dibatalkan',
-            message:
-                'Reservasi ${booking.code} di ${booking.branchName} telah berhasil dibatalkan.',
-            type: 'booking',
-          );
-          Get.snackbar(
-            'Berhasil Dibatalkan',
-            'Reservasi ${booking.code} telah berhasil dibatalkan.',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: AppColors.ink,
-            colorText: AppColors.paper,
-          );
-        } catch (e) {
-          Get.snackbar('Gagal Membatalkan', e.toString().replaceAll('Exception: ', ''));
-        }
-      },
-    );
+      NotificationService().createNotification(
+        userId: booking.customerId,
+        title: 'Reservasi Dibatalkan',
+        message:
+            'Reservasi ${booking.code} di ${booking.branchName} telah berhasil dibatalkan.',
+        type: 'booking',
+      );
+      return true;
+    } catch (e) {
+      errorMessage = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  void clearSession() {
+    myBookings = [];
+    lastCreatedBooking = null;
+    usableVouchers = [];
+    appliedVoucher = null;
+    errorMessage = '';
+    notifyListeners();
   }
 }
-

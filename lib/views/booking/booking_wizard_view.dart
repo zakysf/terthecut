@@ -1,37 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../config/theme.dart';
 import '../../config/date_format_helper.dart';
+import '../../config/ui_helpers.dart';
 import '../../controllers/booking_controller.dart';
 import '../../controllers/branch_controller.dart';
 import '../../controllers/service_controller.dart';
 import '../../controllers/hairstyle_controller.dart';
+import '../../models/booking.dart';
+import '../customer_root_view.dart';
+import 'booking_detail_view.dart';
 
-class BookingWizardView extends StatelessWidget {
-  BookingWizardView({super.key});
+class BookingWizardView extends StatefulWidget {
+  const BookingWizardView({super.key});
 
-  final BookingController _bookingController =
-      Get.isRegistered<BookingController>()
-      ? Get.find<BookingController>()
-      : Get.put(BookingController());
+  @override
+  State<BookingWizardView> createState() => _BookingWizardViewState();
+}
 
-  final BranchController _branchController =
-      Get.isRegistered<BranchController>()
-      ? Get.find<BranchController>()
-      : Get.put(BranchController());
-
-  final ServiceController _serviceController =
-      Get.isRegistered<ServiceController>()
-      ? Get.find<ServiceController>()
-      : Get.put(ServiceController());
-
-  final HairstyleController _hairstyleController =
-      Get.isRegistered<HairstyleController>()
-      ? Get.find<HairstyleController>()
-      : Get.put(HairstyleController());
+class _BookingWizardViewState extends State<BookingWizardView> {
+  final BookingController _bookingController = BookingController();
+  final BranchController _branchController = BranchController();
+  final ServiceController _serviceController = ServiceController();
+  final HairstyleController _hairstyleController = HairstyleController();
 
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
@@ -40,36 +33,166 @@ class BookingWizardView extends StatelessWidget {
   );
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_branchController.branches.isEmpty) {
+        _branchController.retrieveBranches();
+      }
+      if (_serviceController.services.isEmpty) {
+        _serviceController.retrieveCatalog();
+      }
+      if (_hairstyleController.hairstyles.isEmpty) {
+        _hairstyleController.retrieveHairstyles();
+      }
+    });
+  }
+
+  Future<void> _handleConfirmBooking(BuildContext context) async {
+    final booking = await _bookingController.confirmBooking();
+    if (!context.mounted) return;
+
+    if (booking == null) {
+      showAppSnackBar(
+        context,
+        _bookingController.errorMessage,
+        title: 'Pemesanan Gagal',
+        backgroundColor: AppColors.danger,
+        duration: const Duration(seconds: 4),
+      );
+      return;
+    }
+
+    await _showBookingSuccessDialog(context, booking);
+  }
+
+  Future<void> _showBookingSuccessDialog(
+    BuildContext context,
+    Booking booking,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check, color: AppColors.accent, size: 36),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'RESERVASI BERHASIL',
+                  style: Theme.of(dialogContext).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Kode Booking Anda:',
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.ink,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    booking.code,
+                    style: const TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 3.0,
+                      color: AppColors.paper,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '${booking.branchName}\n${booking.formattedDate}\n${booking.formattedTimeRange}',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(dialogContext).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BookingDetailView(booking: booking),
+                      ),
+                    );
+                  },
+                  child: const Text('LIHAT DETAIL TIKET'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CustomerRootView(),
+                      ),
+                      (route) => false,
+                    );
+                  },
+                  child: const Text('KEMBALI KE BERANDA'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
-        title: Obx(() {
-          final titles = [
-            'PILIH CABANG',
-            'PILIH KAPSTER',
-            'PILIH LAYANAN',
-            'INSPIRASI GAYA',
-            'JADWAL & JAM',
-            'KONFIRMASI',
-          ];
-          final step = _bookingController.currentStep.value;
-          return Text(
-            titles[step],
-            style: GoogleFonts.playfairDisplay(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 2.0,
-            ),
-          );
-        }),
+        title: ListenableBuilder(
+          listenable: _bookingController,
+          builder: (context, _) {
+            final titles = [
+              'PILIH CABANG',
+              'PILIH KAPSTER',
+              'PILIH LAYANAN',
+              'INSPIRASI GAYA',
+              'JADWAL & JAM',
+              'KONFIRMASI',
+            ];
+            final step = _bookingController.currentStep;
+            return Text(
+              titles[step],
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2.0,
+              ),
+            );
+          },
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            if (_bookingController.currentStep.value > 0) {
+            if (_bookingController.currentStep > 0) {
               _bookingController.previousStep();
             } else {
-              Get.back();
+              Navigator.pop(context);
             }
           },
         ),
@@ -82,24 +205,27 @@ class BookingWizardView extends StatelessWidget {
 
             // Konten Step Dinamis
             Expanded(
-              child: Obx(() {
-                switch (_bookingController.currentStep.value) {
-                  case 0:
-                    return _buildStepBranch();
-                  case 1:
-                    return _buildStepBarber();
-                  case 2:
-                    return _buildStepService();
-                  case 3:
-                    return _buildStepHairstyle();
-                  case 4:
-                    return _buildStepDateTime();
-                  case 5:
-                    return _buildStepSummary();
-                  default:
-                    return _buildStepBranch();
-                }
-              }),
+              child: ListenableBuilder(
+                listenable: _bookingController,
+                builder: (context, _) {
+                  switch (_bookingController.currentStep) {
+                    case 0:
+                      return _buildStepBranch();
+                    case 1:
+                      return _buildStepBarber();
+                    case 2:
+                      return _buildStepService();
+                    case 3:
+                      return _buildStepHairstyle();
+                    case 4:
+                      return _buildStepDateTime(context);
+                    case 5:
+                      return _buildStepSummary(context);
+                    default:
+                      return _buildStepBranch();
+                  }
+                },
+              ),
             ),
           ],
         ),
@@ -109,55 +235,58 @@ class BookingWizardView extends StatelessWidget {
 
   /// Indikator Tahapan Wizard 6 Langkah
   Widget _buildStepIndicator() {
-    return Obx(() {
-      final current = _bookingController.currentStep.value;
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        color: AppColors.surface,
-        child: Column(
-          children: [
-            Row(
-              children: List.generate(6, (index) {
-                final isActive = index <= current;
-                return Expanded(
-                  child: Container(
-                    height: 3,
-                    margin: EdgeInsets.only(right: index < 5 ? 6 : 0),
-                    decoration: BoxDecoration(
-                      color: isActive ? AppColors.accent : AppColors.hairline,
-                      borderRadius: BorderRadius.circular(2),
+    return ListenableBuilder(
+      listenable: _bookingController,
+      builder: (context, _) {
+        final current = _bookingController.currentStep;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          color: AppColors.surface,
+          child: Column(
+            children: [
+              Row(
+                children: List.generate(6, (index) {
+                  final isActive = index <= current;
+                  return Expanded(
+                    child: Container(
+                      height: 3,
+                      margin: EdgeInsets.only(right: index < 5 ? 6 : 0),
+                      decoration: BoxDecoration(
+                        color: isActive ? AppColors.accent : AppColors.hairline,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Langkah ${current + 1} dari 6',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.inkSoft,
                     ),
                   ),
-                );
-              }),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Langkah ${current + 1} dari 6',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.inkSoft,
+                  Text(
+                    _getStepShortName(current),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.accent,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                ),
-                Text(
-                  _getStepShortName(current),
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.accent,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    });
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   String _getStepShortName(int step) {
@@ -226,19 +355,21 @@ class BookingWizardView extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Obx(() {
-            if (_branchController.isLoading) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.ink),
-              );
-            }
+          child: ListenableBuilder(
+            listenable: _branchController,
+            builder: (context, _) {
+              if (_branchController.isLoading) {
+                return const Center(
+                  child: CircularProgressIndicator(color: AppColors.ink),
+                );
+              }
 
-            final branches = _branchController.branches;
-            if (branches.isEmpty) {
-              return const Center(child: Text('Cabang tidak ditemukan.'));
-            }
+              final branches = _branchController.branches;
+              if (branches.isEmpty) {
+                return const Center(child: Text('Cabang tidak ditemukan.'));
+              }
 
-            return ListView.builder(
+              return ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               itemCount: branches.length,
               itemBuilder: (context, index) {
@@ -354,7 +485,7 @@ class BookingWizardView extends StatelessWidget {
   // STEP 1: PILIH KAPSTER (US-07: 2 Kapster per cabang ATAU Bebas/Auto)
   // ==========================================================================
   Widget _buildStepBarber() {
-    final branch = _bookingController.selectedBranch.value;
+    final branch = _bookingController.selectedBranch;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -488,74 +619,77 @@ class BookingWizardView extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Daftar 2 Kapster Cabang Ini
-          Obx(() {
-            if (_bookingController.isLoadingBarbers.value) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.ink),
-              );
-            }
+          ListenableBuilder(
+            listenable: _bookingController,
+            builder: (context, _) {
+              if (_bookingController.isLoadingBarbers) {
+                return const Center(
+                  child: CircularProgressIndicator(color: AppColors.ink),
+                );
+              }
 
-            final barbers = _bookingController.branchBarbers;
-            if (barbers.isEmpty) {
-              return const Center(
-                child: Text('Data kapster cabang sedang dimuat...'),
-              );
-            }
+              final barbers = _bookingController.branchBarbers;
+              if (barbers.isEmpty) {
+                return const Center(
+                  child: Text('Data kapster cabang sedang dimuat...'),
+                );
+              }
 
-            return Column(
-              children: barbers.map((barber) {
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: InkWell(
-                    onTap: () => _bookingController.selectBarber(barber),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundColor: AppColors.paper,
-                            child: const Icon(
-                              Icons.person_outline,
-                              color: AppColors.ink,
+              return Column(
+                children: barbers.map((barber) {
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: InkWell(
+                      onTap: () => _bookingController.selectBarber(barber),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 24,
+                              backgroundColor: AppColors.paper,
+                              child: const Icon(
+                                Icons.person_outline,
+                                color: AppColors.ink,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  barber.name,
-                                  style: GoogleFonts.playfairDisplay(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    barber.name,
+                                    style: GoogleFonts.playfairDisplay(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Kapster Profesional #${barber.sortOrder}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: AppColors.inkSoft,
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Kapster Profesional #${barber.sortOrder}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: AppColors.inkSoft,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          const Icon(
-                            Icons.arrow_forward_ios,
-                            size: 14,
-                            color: AppColors.inkSoft,
-                          ),
-                        ],
+                            const Icon(
+                              Icons.arrow_forward_ios,
+                              size: 14,
+                              color: AppColors.inkSoft,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              }).toList(),
-            );
-          }),
+                  );
+                }).toList(),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -592,46 +726,51 @@ class BookingWizardView extends StatelessWidget {
               const SizedBox(height: 12),
 
               // Filter Kategori Pills
-              Obx(() {
-                final categories = _serviceController.categories;
-                final selectedId = _serviceController.selectedCategoryId;
+              ListenableBuilder(
+                listenable: _serviceController,
+                builder: (context, _) {
+                  final categories = _serviceController.categories;
+                  final selectedId = _serviceController.selectedCategoryId;
 
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildCatPill(
-                        'all',
-                        'Semua Layanan',
-                        selectedId == 'all',
-                      ),
-                      ...categories.map((c) {
-                        return Padding(
-                          padding: const EdgeInsets.only(left: 8),
-                          child: _buildCatPill(
-                            c.id,
-                            c.name,
-                            selectedId == c.id,
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                );
-              }),
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildCatPill(
+                          'all',
+                          'Semua Layanan',
+                          selectedId == 'all',
+                        ),
+                        ...categories.map((c) {
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: _buildCatPill(
+                              c.id,
+                              c.name,
+                              selectedId == c.id,
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ),
         Expanded(
-          child: Obx(() {
-            if (_serviceController.isLoading) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.ink),
-              );
-            }
+          child: ListenableBuilder(
+            listenable: _serviceController,
+            builder: (context, _) {
+              if (_serviceController.isLoading) {
+                return const Center(
+                  child: CircularProgressIndicator(color: AppColors.ink),
+                );
+              }
 
-            final services = _serviceController.services;
-            return ListView.builder(
+              final services = _serviceController.services;
+              return ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               itemCount: services.length,
               itemBuilder: (context, index) {
@@ -833,15 +972,17 @@ class BookingWizardView extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Obx(() {
-            if (_hairstyleController.isLoading) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.ink),
-              );
-            }
+          child: ListenableBuilder(
+            listenable: _hairstyleController,
+            builder: (context, _) {
+              if (_hairstyleController.isLoading) {
+                return const Center(
+                  child: CircularProgressIndicator(color: AppColors.ink),
+                );
+              }
 
-            final styles = _hairstyleController.hairstyles;
-            return GridView.builder(
+              final styles = _hairstyleController.hairstyles;
+              return GridView.builder(
               padding: const EdgeInsets.all(20),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
@@ -924,8 +1065,8 @@ class BookingWizardView extends StatelessWidget {
   // ==========================================================================
   // STEP 4: PILIH TANGGAL (H+0 s/d H+4) & GRID SLOT JAM BULAT (US-08)
   // ==========================================================================
-  Widget _buildStepDateTime() {
-    final service = _bookingController.selectedService.value;
+  Widget _buildStepDateTime(BuildContext context) {
+    final service = _bookingController.selectedService;
     final duration = service?.durationHours ?? 1;
 
     return Column(
@@ -957,7 +1098,7 @@ class BookingWizardView extends StatelessWidget {
               // Strip Tanggal H+0 s/d H+4 (5 Hari)
               Text(
                 'PILIH TANGGAL (5 HARI KE DEPAN):',
-                style: Theme.of(Get.context!).textTheme.labelSmall,
+                style: Theme.of(context).textTheme.labelSmall,
               ),
               const SizedBox(height: 8),
               SizedBox(
@@ -967,20 +1108,21 @@ class BookingWizardView extends StatelessWidget {
                   itemCount: _bookingController.availableDates.length,
                   itemBuilder: (context, index) {
                     final date = _bookingController.availableDates[index];
-                    return Obx(() {
-                      final selectedDate =
-                          _bookingController.selectedDate.value;
-                      final isSelected =
-                          date.year == selectedDate.year &&
-                          date.month == selectedDate.month &&
-                          date.day == selectedDate.day;
+                    return ListenableBuilder(
+                      listenable: _bookingController,
+                      builder: (context, _) {
+                        final selectedDate = _bookingController.selectedDate;
+                        final isSelected =
+                            date.year == selectedDate.year &&
+                            date.month == selectedDate.month &&
+                            date.day == selectedDate.day;
 
-                      final dayName = IndonesianDateHelper.dayShort(date);
-                      final dayNum = '${date.day}';
-                      final monthName = IndonesianDateHelper.monthShort(date);
+                        final dayName = IndonesianDateHelper.dayShort(date);
+                        final dayNum = '${date.day}';
+                        final monthName = IndonesianDateHelper.monthShort(date);
 
-                      return GestureDetector(
-                        onTap: () => _bookingController.selectDate(date),
+                        return GestureDetector(
+                          onTap: () => _bookingController.selectDate(date),
                         child: Container(
                           width: 65,
                           margin: const EdgeInsets.only(right: 10),
@@ -1055,7 +1197,7 @@ class BookingWizardView extends StatelessWidget {
                   children: [
                     Text(
                       'PILIH JAM MULAI:',
-                      style: Theme.of(Get.context!).textTheme.labelSmall,
+                      style: Theme.of(context).textTheme.labelSmall,
                     ),
                     Row(
                       children: [
@@ -1068,40 +1210,43 @@ class BookingWizardView extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Expanded(
-                  child: Obx(() {
-                    if (_bookingController.isLoadingSlots.value) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: AppColors.ink),
-                      );
-                    }
+                  child: ListenableBuilder(
+                    listenable: _bookingController,
+                    builder: (context, _) {
+                      if (_bookingController.isLoadingSlots) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: AppColors.ink),
+                        );
+                      }
 
-                    final slots = _bookingController.availableSlots;
-                    if (slots.isEmpty) {
-                      return Center(
-                        child: Text(
-                          _bookingController.errorMessage.value.isNotEmpty
-                              ? _bookingController.errorMessage.value
-                              : 'Tidak ada slot jam tersedia.',
-                          style: GoogleFonts.inter(color: AppColors.inkSoft),
-                        ),
-                      );
-                    }
-
-                    return GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                            childAspectRatio: 2.1,
+                      final slots = _bookingController.availableSlots;
+                      if (slots.isEmpty) {
+                        return Center(
+                          child: Text(
+                            _bookingController.errorMessage.isNotEmpty
+                                ? _bookingController.errorMessage
+                                : 'Tidak ada slot jam tersedia.',
+                            style: GoogleFonts.inter(color: AppColors.inkSoft),
                           ),
-                      itemCount: slots.length,
-                      itemBuilder: (context, index) {
-                        final slot = slots[index];
-                        return Obx(() {
-                          final selectedSlot =
-                              _bookingController.selectedSlot.value;
-                          final isSelected = selectedSlot?.hour == slot.hour;
+                        );
+                      }
+
+                      return GridView.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: 2.1,
+                            ),
+                        itemCount: slots.length,
+                        itemBuilder: (context, index) {
+                          final slot = slots[index];
+                          return ListenableBuilder(
+                            listenable: _bookingController,
+                            builder: (context, _) {
+                              final selectedSlot = _bookingController.selectedSlot;
+                              final isSelected = selectedSlot?.hour == slot.hour;
 
                           Color bgColor;
                           Color textColor;
@@ -1195,30 +1340,42 @@ class BookingWizardView extends StatelessWidget {
                 children: [
                   Text(
                     'WAKTU TERPILIH',
-                    style: Theme.of(Get.context!).textTheme.labelSmall,
+                    style: Theme.of(context).textTheme.labelSmall,
                   ),
-                  Obx(() {
-                    final slot = _bookingController.selectedSlot.value;
-                    return Text(
-                      slot != null
-                          ? '${slot.label} - ${(slot.hour + duration).toString().padLeft(2, '0')}:00 WIB'
-                          : 'Belum memilih jam',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: slot != null
-                            ? AppColors.accent
-                            : AppColors.inkSoft,
-                      ),
-                    );
-                  }),
+                  ListenableBuilder(
+                    listenable: _bookingController,
+                    builder: (context, _) {
+                      final slot = _bookingController.selectedSlot;
+                      return Text(
+                        slot != null
+                            ? '${slot.label} - ${(slot.hour + duration).toString().padLeft(2, '0')}:00 WIB'
+                            : 'Belum memilih jam',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: slot != null
+                              ? AppColors.accent
+                              : AppColors.inkSoft,
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => _bookingController.proceedToSummary(),
+                  onPressed: () {
+                    final ok = _bookingController.proceedToSummary();
+                    if (!ok) {
+                      showAppSnackBar(
+                        context,
+                        _bookingController.errorMessage,
+                        title: 'Pilih Jam',
+                      );
+                    }
+                  },
                   child: const Text('LANJUT KE RINGKASAN ->'),
                 ),
               ),
@@ -1254,14 +1411,14 @@ class BookingWizardView extends StatelessWidget {
   // ==========================================================================
   // STEP 5: RINGKASAN & KONFIRMASI (US-09 Anti-Double Booking Booking RPC)
   // ==========================================================================
-  Widget _buildStepSummary() {
-    final branch = _bookingController.selectedBranch.value;
-    final barber = _bookingController.selectedBarber.value;
-    final isAuto = _bookingController.isAutoAssign.value;
-    final service = _bookingController.selectedService.value;
-    final hairstyle = _bookingController.selectedHairstyle.value;
-    final date = _bookingController.selectedDate.value;
-    final slot = _bookingController.selectedSlot.value;
+  Widget _buildStepSummary(BuildContext context) {
+    final branch = _bookingController.selectedBranch;
+    final barber = _bookingController.selectedBarber;
+    final isAuto = _bookingController.isAutoAssign;
+    final service = _bookingController.selectedService;
+    final hairstyle = _bookingController.selectedHairstyle;
+    final date = _bookingController.selectedDate;
+    final slot = _bookingController.selectedSlot;
     final duration = service?.durationHours ?? 1;
 
     final startHour = slot?.hour ?? 10;
@@ -1364,7 +1521,7 @@ class BookingWizardView extends StatelessWidget {
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      _buildTicketRow('CABANG', branch?.name ?? '-'),
+                      _buildTicketRow(context, 'CABANG', branch?.name ?? '-'),
                       const SizedBox(height: 4),
                       Text(
                         branch?.address ?? '',
@@ -1375,52 +1532,55 @@ class BookingWizardView extends StatelessWidget {
                       ),
                       const Divider(height: 24, color: AppColors.hairline),
                       _buildTicketRow(
+                        context,
                         'KAPSTER',
                         isAuto
                             ? 'Bebas / Auto-Assign (Dipilihkan Sistem)'
                             : (barber?.name ?? '-'),
                       ),
                       const SizedBox(height: 12),
-                      _buildTicketRow('LAYANAN', service?.name ?? '-'),
+                      _buildTicketRow(context, 'LAYANAN', service?.name ?? '-'),
                       const SizedBox(height: 12),
-                      _buildTicketRow('DURASI', '$duration Jam Bulat'),
+                      _buildTicketRow(context, 'DURASI', '$duration Jam Bulat'),
                       if (hairstyle != null) ...[
                         const SizedBox(height: 12),
-                        _buildTicketRow('INSPIRASI GAYA', hairstyle.name),
+                        _buildTicketRow(context, 'INSPIRASI GAYA', hairstyle.name),
                       ],
                       const Divider(height: 24, color: AppColors.hairline),
-                      _buildTicketRow('TANGGAL', dateStr),
+                      _buildTicketRow(context, 'TANGGAL', dateStr),
                       const SizedBox(height: 12),
-                      _buildTicketRow('JAM RESERVASI', timeRangeStr),
+                      _buildTicketRow(context, 'JAM RESERVASI', timeRangeStr),
                       const Divider(height: 24, color: AppColors.hairline),
 
                       // Bagian Voucher Diskon
-                      Obx(() {
-                        final applied = _bookingController.appliedVoucher.value;
-                        final usable = _bookingController.usableVouchers;
+                      ListenableBuilder(
+                        listenable: _bookingController,
+                        builder: (context, _) {
+                          final applied = _bookingController.appliedVoucher;
+                          final usable = _bookingController.usableVouchers;
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.confirmation_num_outlined,
-                                      size: 14,
-                                      color: AppColors.accent,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'VOUCHER DISKON',
-                                      style: Theme.of(Get.context!)
-                                          .textTheme
-                                          .labelSmall,
-                                    ),
-                                  ],
-                                ),
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.confirmation_num_outlined,
+                                        size: 14,
+                                        color: AppColors.accent,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'VOUCHER DISKON',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall,
+                                      ),
+                                    ],
+                                  ),
                                 if (applied != null)
                                   GestureDetector(
                                     onTap: () => _bookingController.removeVoucher(),
@@ -1492,7 +1652,7 @@ class BookingWizardView extends StatelessWidget {
                               )
                             else if (usable.isNotEmpty)
                               OutlinedButton.icon(
-                                onPressed: () => _showVoucherPicker(Get.context!),
+                                onPressed: () => _showVoucherPicker(context),
                                 icon: const Icon(
                                   Icons.local_offer_outlined,
                                   size: 14,
@@ -1521,16 +1681,19 @@ class BookingWizardView extends StatelessWidget {
                               ),
                           ],
                         );
-                      }),
+                      },
+                    ),
 
                       const Divider(height: 24, color: AppColors.hairline),
-                      Obx(() {
-                        final discount = _bookingController.discountAmount;
-                        final finalTotal = _bookingController.finalPrice;
-                        final origPrice = service?.price ?? 0;
+                      ListenableBuilder(
+                        listenable: _bookingController,
+                        builder: (context, _) {
+                          final discount = _bookingController.discountAmount;
+                          final finalTotal = _bookingController.finalPrice;
+                          final origPrice = service?.price ?? 0;
 
-                        return Column(
-                          children: [
+                          return Column(
+                            children: [
                             if (discount > 0) ...[
                               Row(
                                 mainAxisAlignment:
@@ -1586,7 +1749,7 @@ class BookingWizardView extends StatelessWidget {
                                   children: [
                                     Text(
                                       'TOTAL BIAYA',
-                                      style: Theme.of(Get.context!)
+                                      style: Theme.of(context)
                                           .textTheme
                                           .labelSmall,
                                     ),
@@ -1634,7 +1797,8 @@ class BookingWizardView extends StatelessWidget {
                             ),
                           ],
                         );
-                      }),
+                      },
+                    ),
                     ],
                   ),
                 ),
@@ -1644,30 +1808,33 @@ class BookingWizardView extends StatelessWidget {
           const SizedBox(height: 20),
 
           // Tombol Konfirmasi Final
-          Obx(() {
-            final isSubmitting = _bookingController.isSubmitting.value;
-            return ElevatedButton(
-              onPressed: isSubmitting
-                  ? null
-                  : () => _bookingController.confirmBooking(),
-              child: isSubmitting
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: AppColors.paper,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text('KONFIRMASI RESERVASI SEKARANG'),
-            );
-          }),
+          ListenableBuilder(
+            listenable: _bookingController,
+            builder: (context, _) {
+              final isSubmitting = _bookingController.isSubmitting;
+              return ElevatedButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () => _handleConfirmBooking(context),
+                child: isSubmitting
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: AppColors.paper,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text('KONFIRMASI RESERVASI SEKARANG'),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildTicketRow(String label, String value) {
+  Widget _buildTicketRow(BuildContext context, String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1675,7 +1842,7 @@ class BookingWizardView extends StatelessWidget {
         Flexible(
           child: Text(
             label,
-            style: Theme.of(Get.context!).textTheme.labelSmall,
+            style: Theme.of(context).textTheme.labelSmall,
           ),
         ),
         const SizedBox(width: 12),
@@ -1695,126 +1862,135 @@ class BookingWizardView extends StatelessWidget {
   }
 
   void _showVoucherPicker(BuildContext context) {
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: AppColors.paper,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'PILIH VOUCHER REWARD',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'PILIH VOUCHER REWARD',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Get.back(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Flexible(
-              child: Obx(() {
-                return ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: _bookingController.usableVouchers.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final v = _bookingController.usableVouchers[index];
-                    final isSelected =
-                        _bookingController.appliedVoucher.value?.voucherCode ==
-                            v.voucherCode;
-                    return InkWell(
-                      onTap: () {
-                        _bookingController.applyVoucher(v);
-                        Get.back();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.gold
-                                : AppColors.hairline,
-                            width: isSelected ? 2 : 1,
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(sheetContext),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Flexible(
+                child: ListenableBuilder(
+                  listenable: _bookingController,
+                  builder: (context, _) {
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: _bookingController.usableVouchers.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final v = _bookingController.usableVouchers[index];
+                        final isSelected =
+                            _bookingController.appliedVoucher?.voucherCode ==
+                                v.voucherCode;
+                        return InkWell(
+                          onTap: () {
+                            _bookingController.applyVoucher(v);
+                            Navigator.pop(sheetContext);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.gold
+                                    : AppColors.hairline,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.card_giftcard,
+                                  color: isSelected
+                                      ? AppColors.gold
+                                      : AppColors.inkSoft,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        v.rewardName,
+                                        style: GoogleFonts.inter(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: AppColors.ink,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Kode: ${v.voucherCode} • Berlaku s.d. ${v.formattedExpiry}',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: AppColors.inkSoft,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: AppColors.gold,
+                                    size: 20,
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.card_giftcard,
-                              color: isSelected
-                                  ? AppColors.gold
-                                  : AppColors.inkSoft,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    v.rewardName,
-                                    style: GoogleFonts.inter(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: AppColors.ink,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Kode: ${v.voucherCode} • Berlaku s.d. ${v.formattedExpiry}',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      color: AppColors.inkSoft,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (isSelected)
-                              const Icon(
-                                Icons.check_circle,
-                                color: AppColors.gold,
-                                size: 20,
-                              ),
-                          ],
-                        ),
-                      ),
+                        );
+                      },
                     );
                   },
-                );
-              }),
-            ),
-            const SizedBox(height: 14),
-            Obx(() {
-              if (_bookingController.appliedVoucher.value != null) {
-                return OutlinedButton(
-                  onPressed: () {
-                    _bookingController.removeVoucher();
-                    Get.back();
-                  },
-                  child: const Text('BATALKAN PENGGUNAAN VOUCHER'),
-                );
-              }
-              return const SizedBox.shrink();
-            }),
-          ],
-        ),
-      ),
-      isScrollControlled: true,
+                ),
+              ),
+              const SizedBox(height: 14),
+              ListenableBuilder(
+                listenable: _bookingController,
+                builder: (context, _) {
+                  if (_bookingController.appliedVoucher != null) {
+                    return OutlinedButton(
+                      onPressed: () {
+                        _bookingController.removeVoucher();
+                        Navigator.pop(sheetContext);
+                      },
+                      child: const Text('BATALKAN PENGGUNAAN VOUCHER'),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

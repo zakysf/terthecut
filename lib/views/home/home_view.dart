@@ -1,33 +1,69 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../config/theme.dart';
+import '../../config/ui_helpers.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/branch_controller.dart';
 import '../../controllers/booking_controller.dart';
 import '../../controllers/customer_nav_controller.dart';
 import '../../controllers/notification_controller.dart';
 import '../../controllers/promotion_controller.dart';
+import '../auth/login_view.dart';
+import '../booking/booking_wizard_view.dart';
+import '../branch/branch_detail_view.dart';
+import '../branch/branch_list_view.dart';
+import '../feedback/submit_feedback_view.dart';
+import '../hairstyle/hairstyle_list_view.dart';
+import '../loyalty/reward_catalog_view.dart';
+import '../notification/notification_list_view.dart';
+import '../services/service_catalog_view.dart';
 
-class HomeView extends StatelessWidget {
-  HomeView({super.key});
-
-  final AuthController _authController = Get.isRegistered<AuthController>()
-      ? Get.find<AuthController>()
-      : Get.put(AuthController(), permanent: true);
-  final BranchController _branchController = Get.put(BranchController());
-  final PromotionController _promotionController = Get.put(PromotionController());
-  final NotificationController _notificationController = Get.put(NotificationController());
+class HomeView extends StatefulWidget {
+  const HomeView({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  State<HomeView> createState() => _HomeViewState();
+}
+
+class _HomeViewState extends State<HomeView> {
+  final AuthController _authController = AuthController();
+  final BranchController _branchController = BranchController();
+  final PromotionController _promotionController = PromotionController();
+  final NotificationController _notificationController = NotificationController();
+
+  @override
+  void initState() {
+    super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _authController.refreshProfile();
+      _branchController.retrieveBranches();
       _promotionController.loadPromotions();
       _notificationController.loadNotifications();
     });
+  }
 
+  Future<void> _handleLogout() async {
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: 'Konfirmasi Keluar',
+      message: 'Apakah Anda yakin ingin keluar dari akun?',
+      confirmLabel: 'Ya, Keluar',
+      cancelLabel: 'Batal',
+    );
+    if (!confirmed) return;
+
+    await _authController.logout();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginView()),
+      (route) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
@@ -42,43 +78,51 @@ class HomeView extends StatelessWidget {
         ),
         actions: [
           // Lonceng Notifikasi In-App dengan Badge Reaktif (US-21)
-          Obx(() {
-            final unread = _notificationController.unreadCount;
-            return Stack(
-              alignment: Alignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.notifications_outlined,
-                    size: 22,
-                    color: AppColors.ink,
-                  ),
-                  tooltip: 'Notifikasi',
-                  onPressed: () => Get.toNamed('/notifications'),
-                ),
-                if (unread > 0)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AppColors.gold,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '$unread',
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.paper,
-                        ),
+          ListenableBuilder(
+            listenable: _notificationController,
+            builder: (context, _) {
+              final unread = _notificationController.unreadCount;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_outlined,
+                      size: 22,
+                      color: AppColors.ink,
+                    ),
+                    tooltip: 'Notifikasi',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationListView(),
                       ),
                     ),
                   ),
-              ],
-            );
-          }),
+                  if (unread > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.gold,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$unread',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.paper,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(
               Icons.event_note_outlined,
@@ -86,35 +130,12 @@ class HomeView extends StatelessWidget {
               color: AppColors.ink,
             ),
             tooltip: 'Booking Saya',
-            onPressed: () {
-              if (Get.isRegistered<CustomerNavController>()) {
-                Get.find<CustomerNavController>().toBooking();
-              } else {
-                final bc = Get.isRegistered<BookingController>()
-                    ? Get.find<BookingController>()
-                    : Get.put(BookingController());
-                bc.loadMyBookings();
-                Get.toNamed('/my-bookings');
-              }
-            },
+            onPressed: () => CustomerNavController().toBooking(),
           ),
           IconButton(
             icon: const Icon(Icons.logout, size: 20, color: AppColors.inkSoft),
             tooltip: 'Keluar',
-            onPressed: () {
-              Get.defaultDialog(
-                title: 'Konfirmasi Keluar',
-                middleText: 'Apakah Anda yakin ingin keluar dari akun?',
-                textConfirm: 'Ya, Keluar',
-                textCancel: 'Batal',
-                confirmTextColor: AppColors.paper,
-                buttonColor: AppColors.ink,
-                onConfirm: () {
-                  Get.back();
-                  _authController.logout();
-                },
-              );
-            },
+            onPressed: _handleLogout,
           ),
         ],
       ),
@@ -125,50 +146,49 @@ class HomeView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Sapaan Editorial
-              Obx(() {
-                final profile = _authController.currentProfile;
-                final name = profile?.name ?? 'Pelanggan';
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Selamat datang,',
-                      style: GoogleFonts.playfairDisplay(
-                        fontSize: 16,
-                        fontStyle: FontStyle.italic,
-                        color: AppColors.inkSoft,
+              ListenableBuilder(
+                listenable: _authController,
+                builder: (context, _) {
+                  final profile = _authController.currentProfile;
+                  final name = profile?.name ?? 'Pelanggan';
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Selamat datang,',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 16,
+                          fontStyle: FontStyle.italic,
+                          color: AppColors.inkSoft,
+                        ),
                       ),
-                    ),
-                    Text(
-                      name,
-                      style: GoogleFonts.playfairDisplay(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.ink,
+                      Text(
+                        name,
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.ink,
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              }),
+                    ],
+                  );
+                },
+              ),
               const SizedBox(height: 20),
 
               // Digital Membership Card (Editorial Style)
-              Obx(() {
-                final profile = _authController.currentProfile;
-                final tier = profile?.tier ?? 'Bronze';
-                final points = profile?.pointsBalance ?? 0;
-                final lifetime = profile?.lifetimePoints ?? 0;
-                final name = profile?.name ?? 'Ter The Cut Member';
+              ListenableBuilder(
+                listenable: _authController,
+                builder: (context, _) {
+                  final profile = _authController.currentProfile;
+                  final tier = profile?.tier ?? 'Bronze';
+                  final points = profile?.pointsBalance ?? 0;
+                  final lifetime = profile?.lifetimePoints ?? 0;
+                  final name = profile?.name ?? 'Ter The Cut Member';
 
-                return InkWell(
-                  onTap: () {
-                    if (Get.isRegistered<CustomerNavController>()) {
-                      Get.find<CustomerNavController>().toPointLedger();
-                    } else {
-                      Get.toNamed('/point-ledger');
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(6),
+                  return InkWell(
+                    onTap: () => CustomerNavController().toPointLedger(),
+                    borderRadius: BorderRadius.circular(6),
                   child: Container(
                     padding: const EdgeInsets.all(22),
                     decoration: BoxDecoration(
@@ -267,7 +287,8 @@ class HomeView extends StatelessWidget {
                     ),
                   ),
                 );
-              }),
+              },
+              ),
               const SizedBox(height: 20),
 
               // Tombol Utama Reservasi Jadwal (Sprint 2)
@@ -275,11 +296,12 @@ class HomeView extends StatelessWidget {
                 icon: const Icon(Icons.calendar_month_outlined, size: 20),
                 label: const Text('RESERVASI JADWAL SEKARANG'),
                 onPressed: () {
-                  final bc = Get.isRegistered<BookingController>()
-                      ? Get.find<BookingController>()
-                      : Get.put(BookingController());
+                  final bc = BookingController();
                   bc.initWizard();
-                  Get.toNamed('/booking-wizard');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BookingWizardView()),
+                  );
                 },
               ),
               const SizedBox(height: 28),
@@ -295,19 +317,28 @@ class HomeView extends StatelessWidget {
                   _buildQuickAction(
                     icon: Icons.store_outlined,
                     label: '11 Cabang',
-                    onTap: () => Get.toNamed('/branches'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BranchListView()),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   _buildQuickAction(
                     icon: Icons.content_cut_outlined,
                     label: 'Layanan',
-                    onTap: () => Get.toNamed('/services'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ServiceCatalogView()),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   _buildQuickAction(
                     icon: Icons.face_outlined,
                     label: 'Inspirasi',
-                    onTap: () => Get.toNamed('/hairstyles'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const HairstyleListView()),
+                    ),
                   ),
                 ],
               ),
@@ -317,31 +348,22 @@ class HomeView extends StatelessWidget {
                   _buildQuickAction(
                     icon: Icons.card_giftcard_outlined,
                     label: 'Tukar Reward',
-                    onTap: () => Get.toNamed('/rewards'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RewardCatalogView()),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   _buildQuickAction(
                     icon: Icons.wallet_outlined,
                     label: 'Voucher Saya',
-                    onTap: () {
-                      if (Get.isRegistered<CustomerNavController>()) {
-                        Get.find<CustomerNavController>().toVouchers();
-                      } else {
-                        Get.toNamed('/my-vouchers');
-                      }
-                    },
+                    onTap: () => CustomerNavController().toVouchers(),
                   ),
                   const SizedBox(width: 10),
                   _buildQuickAction(
                     icon: Icons.receipt_long_outlined,
                     label: 'Mutasi Poin',
-                    onTap: () {
-                      if (Get.isRegistered<CustomerNavController>()) {
-                        Get.find<CustomerNavController>().toPointLedger();
-                      } else {
-                        Get.toNamed('/point-ledger');
-                      }
-                    },
+                    onTap: () => CustomerNavController().toPointLedger(),
                   ),
                 ],
               ),
@@ -356,7 +378,10 @@ class HomeView extends StatelessWidget {
                     style: Theme.of(context).textTheme.labelSmall,
                   ),
                   GestureDetector(
-                    onTap: () => Get.toNamed('/branches'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BranchListView()),
+                    ),
                     child: Text(
                       'Lihat Semua (11)',
                       style: GoogleFonts.inter(
@@ -369,7 +394,9 @@ class HomeView extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              Obx(() {
+              ListenableBuilder(
+                listenable: _branchController,
+                builder: (context, _) {
                 if (_branchController.isLoading) {
                   return const Center(
                     child: Padding(
@@ -433,13 +460,18 @@ class HomeView extends StatelessWidget {
                           size: 14,
                           color: AppColors.inkSoft,
                         ),
-                        onTap: () =>
-                            Get.toNamed('/branch-detail', arguments: branch),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BranchDetailView(branch: branch),
+                          ),
+                        ),
                       ),
                     );
                   }).toList(),
                 );
-              }),
+              },
+              ),
               const SizedBox(height: 24),
 
               // Promo Menarik Sedang Berlangsung (US-16)
@@ -450,22 +482,27 @@ class HomeView extends StatelessWidget {
                     'PROMO & PENAWARAN',
                     style: Theme.of(context).textTheme.labelSmall,
                   ),
-                  Obx(() {
-                    final count = _promotionController.activePromotions.length;
-                    return Text(
-                      '$count Promo Aktif',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.gold,
-                      ),
-                    );
-                  }),
+                  ListenableBuilder(
+                    listenable: _promotionController,
+                    builder: (context, _) {
+                      final count = _promotionController.activePromotions.length;
+                      return Text(
+                        '$count Promo Aktif',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.gold,
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
-              Obx(() {
-                if (_promotionController.isLoading.value) {
+              ListenableBuilder(
+                listenable: _promotionController,
+                builder: (context, _) {
+                  if (_promotionController.isLoading) {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(16.0),
@@ -591,12 +628,16 @@ class HomeView extends StatelessWidget {
                     );
                   }).toList(),
                 );
-              }),
+              },
+              ),
               const SizedBox(height: 20),
 
               // Banner Kritik & Saran Pelanggan (US-14)
               InkWell(
-                onTap: () => Get.toNamed('/feedback'),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SubmitFeedbackView()),
+                ),
                 borderRadius: BorderRadius.circular(6),
                 child: Container(
                   padding: const EdgeInsets.all(16),

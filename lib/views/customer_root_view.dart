@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../config/theme.dart';
@@ -19,35 +18,32 @@ class CustomerRootView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final CustomerNavController navController = Get.put(
-      CustomerNavController(),
-      permanent: true,
-    );
+    final CustomerNavController navController = CustomerNavController();
 
-    final List<Widget> pages = [
+    const List<Widget> pages = [
       HomeView(),
       MyBookingsView(showBackButton: false),
       PointLedgerView(showBackButton: false),
       MyVouchersView(showBackButton: false),
     ];
 
-    return Scaffold(
-      body: Obx(
-        () => IndexedStack(
-          index: navController.currentIndex.value,
-          children: pages,
-        ),
-      ),
-      bottomNavigationBar: Obx(
-        () => Container(
-          decoration: const BoxDecoration(
-            border: Border(
-              top: BorderSide(color: AppColors.hairline, width: 0.8),
-            ),
+    return ValueListenableBuilder<int>(
+      valueListenable: navController.currentIndex,
+      builder: (context, selectedIndex, _) {
+        return Scaffold(
+          body: IndexedStack(
+            index: selectedIndex,
+            children: pages,
           ),
-          child: BottomNavigationBar(
-            currentIndex: navController.currentIndex.value,
-            onTap: navController.changeTab,
+          bottomNavigationBar: Container(
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: AppColors.hairline, width: 0.8),
+              ),
+            ),
+            child: BottomNavigationBar(
+              currentIndex: selectedIndex,
+              onTap: navController.changeTab,
             type: BottomNavigationBarType.fixed,
             backgroundColor: AppColors.surface,
             selectedItemColor: AppColors.accent,
@@ -86,7 +82,8 @@ class CustomerRootView extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
+      );
+    },
+  );
   }
 }

@@ -1,20 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../config/theme.dart';
 import '../../controllers/service_controller.dart';
 import '../../controllers/booking_controller.dart';
+import '../booking/booking_wizard_view.dart';
 
-class ServiceCatalogView extends StatelessWidget {
-  ServiceCatalogView({super.key});
+class ServiceCatalogView extends StatefulWidget {
+  const ServiceCatalogView({super.key});
 
-  final ServiceController _controller = Get.put(ServiceController());
+  @override
+  State<ServiceCatalogView> createState() => _ServiceCatalogViewState();
+}
+
+class _ServiceCatalogViewState extends State<ServiceCatalogView> {
+  final ServiceController _controller = ServiceController();
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'Rp ',
     decimalDigits: 0,
   );
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.retrieveCatalog();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,74 +37,80 @@ class ServiceCatalogView extends StatelessWidget {
         title: const Text('KATALOG LAYANAN'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
             // Kategori Filter Pills
-            Obx(() {
-              final categories = _controller.categories;
-              final selectedId = _controller.selectedCategoryId;
+            ListenableBuilder(
+              listenable: _controller,
+              builder: (context, _) {
+                final categories = _controller.categories;
+                final selectedId = _controller.selectedCategoryId;
 
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: Row(
-                  children: [
-                    _buildCategoryPill(
-                      id: 'all',
-                      label: 'Semua Layanan',
-                      isSelected: selectedId == 'all',
-                    ),
-                    const SizedBox(width: 8),
-                    ...categories.map((cat) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: _buildCategoryPill(
-                          id: cat.id,
-                          label: cat.name,
-                          isSelected: selectedId == cat.id,
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              );
-            }),
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Row(
+                    children: [
+                      _buildCategoryPill(
+                        id: 'all',
+                        label: 'Semua Layanan',
+                        isSelected: selectedId == 'all',
+                      ),
+                      const SizedBox(width: 8),
+                      ...categories.map((cat) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: _buildCategoryPill(
+                            id: cat.id,
+                            label: cat.name,
+                            isSelected: selectedId == cat.id,
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                );
+              },
+            ),
 
             const Divider(color: AppColors.hairline, height: 1),
 
             // Daftar Layanan (18 Layanan)
             Expanded(
-              child: Obx(() {
-                if (_controller.isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppColors.ink),
-                  );
-                }
+              child: ListenableBuilder(
+                listenable: _controller,
+                builder: (context, _) {
+                  if (_controller.isLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: AppColors.ink),
+                    );
+                  }
 
-                final services = _controller.services;
-                if (services.isEmpty) {
-                  return const Center(child: Text('Layanan belum tersedia.'));
-                }
+                  final services = _controller.services;
+                  if (services.isEmpty) {
+                    return const Center(child: Text('Layanan belum tersedia.'));
+                  }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  itemCount: services.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final svc = services[index];
-                    return Card(
-                      child: InkWell(
-                        onTap: () {
-                          final bc = Get.isRegistered<BookingController>()
-                              ? Get.find<BookingController>()
-                              : Get.put(BookingController());
-                          bc.initWizard(initialService: svc);
-                          Get.toNamed('/booking-wizard');
-                        },
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    itemCount: services.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final svc = services[index];
+                      return Card(
+                        child: InkWell(
+                          onTap: () {
+                            final bc = BookingController();
+                            bc.initWizard(initialService: svc);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const BookingWizardView()),
+                            );
+                          },
                         child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: Column(
@@ -211,7 +230,8 @@ class ServiceCatalogView extends StatelessWidget {
                   );
                   },
                 );
-              }),
+              },
+            ),
             ),
           ],
         ),

@@ -1,25 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../config/theme.dart';
 import '../../controllers/notification_controller.dart';
 
 /// Pusat Riwayat Notifikasi In-App Pelanggan (US-21)
-class NotificationListView extends StatelessWidget {
-  NotificationListView({super.key});
-
-  final NotificationController _controller =
-      Get.isRegistered<NotificationController>()
-          ? Get.find<NotificationController>()
-          : Get.put(NotificationController());
+class NotificationListView extends StatefulWidget {
+  const NotificationListView({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  State<NotificationListView> createState() => _NotificationListViewState();
+}
+
+class _NotificationListViewState extends State<NotificationListView> {
+  final NotificationController _controller = NotificationController();
+
+  @override
+  void initState() {
+    super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _controller.loadNotifications();
     });
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
@@ -32,33 +37,38 @@ class NotificationListView extends StatelessWidget {
           ),
         ),
         actions: [
-          Obx(() {
-            if (_controller.unreadCount > 0) {
-              return TextButton(
-                onPressed: () => _controller.markAllAsRead(),
-                child: Text(
-                  'Tandai Dibaca',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.accent,
+          ListenableBuilder(
+            listenable: _controller,
+            builder: (context, _) {
+              if (_controller.unreadCount > 0) {
+                return TextButton(
+                  onPressed: () => _controller.markAllAsRead(),
+                  child: Text(
+                    'Tandai Dibaca',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.accent,
+                    ),
                   ),
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          }),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
         ],
       ),
       body: SafeArea(
-        child: Obx(() {
-          if (_controller.isLoading.value) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.ink),
-            );
-          }
+        child: ListenableBuilder(
+          listenable: _controller,
+          builder: (context, _) {
+            if (_controller.isLoading) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.ink),
+              );
+            }
 
-          final list = _controller.notifications;
+            final list = _controller.notifications;
 
           if (list.isEmpty) {
             return Center(
@@ -195,7 +205,8 @@ class NotificationListView extends StatelessWidget {
               );
             },
           );
-        }),
+        },
+        ),
       ),
     );
   }

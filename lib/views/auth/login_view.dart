@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../config/theme.dart';
+import '../../config/ui_helpers.dart';
 import '../../controllers/auth_controller.dart';
+import '../admin/admin_dashboard_view.dart';
+import '../customer_root_view.dart';
+import 'register_view.dart';
 
 /// Halaman Masuk Portal Tunggal (Single Portal dengan RBAC Otomatis)
 class LoginView extends StatefulWidget {
@@ -14,9 +17,7 @@ class LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<LoginView> {
-  final AuthController _authController = Get.isRegistered<AuthController>()
-      ? Get.find<AuthController>()
-      : Get.put(AuthController(), permanent: true);
+  final AuthController _authController = AuthController();
 
   final TextEditingController _identifierController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -30,23 +31,42 @@ class _LoginViewState extends State<LoginView> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final identifier = _identifierController.text.trim();
     final password = _passwordController.text.trim();
 
     if (identifier.isEmpty || password.isEmpty) {
-      Get.snackbar(
-        'Perhatian',
+      showAppSnackBar(
+        context,
         'Harap isi nomor telepon dan kata sandi dengan lengkap.',
-        snackPosition: SnackPosition.BOTTOM,
+        title: 'Perhatian',
       );
       return;
     }
 
-    _authController.login(
+    final ok = await _authController.login(
       identifier: identifier,
       password: password,
     );
+    if (!mounted) return;
+
+    if (ok) {
+      final destination = _authController.isAdmin
+          ? const AdminDashboardView()
+          : const CustomerRootView();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => destination),
+        (route) => false,
+      );
+    } else {
+      showAppSnackBar(
+        context,
+        _authController.errorMessage,
+        title: 'Gagal Masuk',
+        backgroundColor: AppColors.danger,
+      );
+    }
   }
 
   @override
@@ -137,17 +157,20 @@ class _LoginViewState extends State<LoginView> {
                 const SizedBox(height: 28),
 
                 // Tombol Masuk Utama
-                Obx(() {
-                  if (_authController.isLoading) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: AppColors.ink),
+                ListenableBuilder(
+                  listenable: _authController,
+                  builder: (context, _) {
+                    if (_authController.isLoading) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: AppColors.ink),
+                      );
+                    }
+                    return ElevatedButton(
+                      onPressed: _submit,
+                      child: const Text('MASUK'),
                     );
-                  }
-                  return ElevatedButton(
-                    onPressed: _submit,
-                    child: const Text('MASUK'),
-                  );
-                }),
+                  },
+                ),
                 const SizedBox(height: 24),
 
                 // Tautan Pendaftaran Akun Pelanggan Baru
@@ -162,7 +185,10 @@ class _LoginViewState extends State<LoginView> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => Get.toNamed('/register'),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RegisterView()),
+                      ),
                       child: Text(
                         'Daftar Baru',
                         style: GoogleFonts.inter(

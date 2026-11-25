@@ -1,20 +1,23 @@
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import '../config/theme.dart';
+import 'package:flutter/foundation.dart';
 import '../models/feedback_item.dart';
 import '../services/feedback_service.dart';
 import 'auth_controller.dart';
 
-/// Controller Manajemen Kritik & Saran Pelanggan & Admin (US-14, US-15)
-class FeedbackController extends GetxController {
+/// Singleton controller Manajemen Kritik & Saran Pelanggan & Admin (US-14, US-15).
+class FeedbackController extends ChangeNotifier {
+  static final FeedbackController _instance = FeedbackController._internal();
+  factory FeedbackController() => _instance;
+  FeedbackController._internal();
+
   final FeedbackService _feedbackService = FeedbackService();
 
-  final RxList<FeedbackItem> feedbacks = <FeedbackItem>[].obs;
-  final RxBool isLoading = false.obs;
-  final RxBool isSubmitting = false.obs;
+  List<FeedbackItem> feedbacks = [];
+  bool isLoading = false;
+  bool isSubmitting = false;
+  String errorMessage = '';
 
-  final RxString selectedCategory = 'Pelayanan'.obs;
-  final RxInt selectedRating = 5.obs;
+  String selectedCategory = 'Pelayanan';
+  int selectedRating = 5;
 
   final List<String> categories = const [
     'Pelayanan',
@@ -24,50 +27,46 @@ class FeedbackController extends GetxController {
     'Lainnya',
   ];
 
-  @override
-  void onInit() {
-    super.onInit();
-    loadFeedbacks();
+  void setCategory(String category) {
+    selectedCategory = category;
+    notifyListeners();
   }
 
-  /// Memuat riwayat kritik & saran untuk admin
+  void setRating(int rating) {
+    selectedRating = rating;
+    notifyListeners();
+  }
+
+  /// Memuat riwayat kritik & saran untuk admin.
   Future<void> loadFeedbacks() async {
     try {
-      isLoading.value = true;
+      isLoading = true;
+      notifyListeners();
+
       final list = await _feedbackService.getFeedbacks();
-      feedbacks.assignAll(list);
+      feedbacks = list;
     } catch (_) {
     } finally {
-      isLoading.value = false;
+      isLoading = false;
+      notifyListeners();
     }
   }
 
-  /// Mengirim kritik & saran dari sisi pelanggan (US-14)
+  /// Mengirim kritik & saran dari sisi pelanggan (US-14).
   Future<bool> submitFeedback({required String message}) async {
     final cleanMessage = message.trim();
     if (cleanMessage.isEmpty) {
-      Get.snackbar(
-        'Perhatian',
-        'Harap tuliskan masukan atau saran Anda terlebih dahulu.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.danger,
-        colorText: AppColors.paper,
-        icon: const Icon(Icons.warning_amber_rounded, color: AppColors.paper),
-        margin: const EdgeInsets.all(16),
-        borderRadius: 8,
-        duration: const Duration(seconds: 3),
-      );
+      errorMessage = 'Harap tuliskan masukan atau saran Anda terlebih dahulu.';
+      notifyListeners();
       return false;
     }
 
     try {
-      isSubmitting.value = true;
+      isSubmitting = true;
+      errorMessage = '';
+      notifyListeners();
 
-      final auth = Get.isRegistered<AuthController>()
-          ? Get.find<AuthController>()
-          : Get.put(AuthController(), permanent: true);
-
-      final profile = auth.currentProfile;
+      final profile = AuthController().currentProfile;
       final userId = profile?.id ?? 'guest';
       final userName = profile?.name ?? 'Pelanggan';
       final userPhone = profile?.phone ?? '-';
@@ -76,30 +75,22 @@ class FeedbackController extends GetxController {
         userId: userId,
         userName: userName,
         userPhone: userPhone,
-        category: selectedCategory.value,
+        category: selectedCategory,
         message: cleanMessage,
-        rating: selectedRating.value,
+        rating: selectedRating,
       );
 
-      feedbacks.insert(0, item);
-      isSubmitting.value = false;
+      feedbacks = [item, ...feedbacks];
+      isSubmitting = false;
+      notifyListeners();
       return true;
     } catch (e) {
-      isSubmitting.value = false;
-      final errorMsg = e.toString().replaceAll('Exception:', '').trim();
-      Get.snackbar(
-        'Gagal Mengirim',
-        errorMsg.isNotEmpty
-            ? errorMsg
-            : 'Terjadi kendala teknis saat mengirim saran. Silakan coba kembali.',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: AppColors.danger,
-        colorText: AppColors.paper,
-        icon: const Icon(Icons.error_outline, color: AppColors.paper),
-        margin: const EdgeInsets.all(16),
-        borderRadius: 8,
-        duration: const Duration(seconds: 4),
-      );
+      isSubmitting = false;
+      final rawMsg = e.toString().replaceAll('Exception:', '').trim();
+      errorMessage = rawMsg.isNotEmpty
+          ? rawMsg
+          : 'Terjadi kendala teknis saat mengirim saran. Silakan coba kembali.';
+      notifyListeners();
       return false;
     }
   }

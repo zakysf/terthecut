@@ -1,33 +1,180 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
+import '../../config/ui_helpers.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/loyalty_controller.dart';
 import '../../models/reward.dart';
+import '../../models/reward_redemption.dart';
+import 'my_vouchers_view.dart';
+import 'point_ledger_view.dart';
 
-class RewardCatalogView extends StatelessWidget {
+class RewardCatalogView extends StatefulWidget {
   final bool showBackButton;
-  RewardCatalogView({super.key, this.showBackButton = true});
-
-  final LoyaltyController _loyaltyController = Get.isRegistered<LoyaltyController>()
-      ? Get.find<LoyaltyController>()
-      : Get.put(LoyaltyController());
-
-  final AuthController _authController = Get.isRegistered<AuthController>()
-      ? Get.find<AuthController>()
-      : Get.put(AuthController(), permanent: true);
+  const RewardCatalogView({super.key, this.showBackButton = true});
 
   @override
-  Widget build(BuildContext context) {
+  State<RewardCatalogView> createState() => _RewardCatalogViewState();
+}
+
+class _RewardCatalogViewState extends State<RewardCatalogView> {
+  final LoyaltyController _loyaltyController = LoyaltyController();
+  final AuthController _authController = AuthController();
+
+  @override
+  void initState() {
+    super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loyaltyController.loadLoyaltyData();
     });
+  }
 
+  Future<void> _handleRedeemReward(Reward reward) async {
+    final profile = _authController.currentProfile;
+    if (profile == null) {
+      showAppSnackBar(
+        context,
+        'Silakan masuk ke akun Anda terlebih dahulu.',
+        title: 'Perhatian',
+      );
+      return;
+    }
+
+    if (profile.pointsBalance < reward.pointsCost) {
+      await showAppInfoDialog(
+        context,
+        title: 'Poin Tidak Cukup',
+        message:
+            'Saldo poin Anda saat ini (${profile.pointsBalance} Pts) belum mencapai ${reward.pointsCost} Pts untuk menukarkan reward ini.',
+      );
+      return;
+    }
+
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: 'Konfirmasi Penukaran',
+      message:
+          'Apakah Anda yakin ingin menukarkan ${reward.pointsCost} Poin untuk voucher "${reward.name}"?',
+      confirmLabel: 'Ya, Tukar',
+      cancelLabel: 'Batal',
+    );
+    if (!confirmed) return;
+
+    final redemption = await _loyaltyController.executeRedeemReward(reward);
+    if (!mounted) return;
+
+    if (redemption == null) {
+      showAppSnackBar(
+        context,
+        _loyaltyController.errorMessage,
+        title: 'Penukaran Gagal',
+        backgroundColor: AppColors.danger,
+      );
+      return;
+    }
+
+    await _showRedeemSuccessDialog(reward, redemption);
+  }
+
+  Future<void> _showRedeemSuccessDialog(
+    Reward reward,
+    RewardRedemption redemption,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.card_giftcard,
+                    color: AppColors.gold,
+                    size: 36,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'PENUKARAN BERHASIL!',
+                  style: Theme.of(dialogContext).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Voucher ${reward.name} telah diterbitkan dan tersimpan di Dompet Voucher Anda.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.ink,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    redemption.voucherCode,
+                    style: const TextStyle(
+                      fontFamily: 'Playfair Display',
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 3.0,
+                      color: AppColors.paper,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Berlaku hingga: ${redemption.formattedExpiry}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.inkSoft,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyVouchersView()),
+                    );
+                  },
+                  child: const Text('BUKA DOMPET VOUCHER'),
+                ),
+                const SizedBox(height: 6),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('TUTUP'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.paper,
       appBar: AppBar(
-        automaticallyImplyLeading: showBackButton,
+        automaticallyImplyLeading: widget.showBackButton,
         title: Text(
           'KATALOG REWARD',
           style: GoogleFonts.playfairDisplay(
@@ -38,7 +185,10 @@ class RewardCatalogView extends StatelessWidget {
         ),
         actions: [
           TextButton.icon(
-            onPressed: () => Get.toNamed('/my-vouchers'),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MyVouchersView()),
+            ),
             icon: const Icon(Icons.wallet, size: 18, color: AppColors.gold),
             label: Text(
               'VOUCHER',
@@ -62,7 +212,9 @@ class RewardCatalogView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Saldo Poin Pelanggan Saat Ini
-                Obx(() {
+                ListenableBuilder(
+                  listenable: _authController,
+                  builder: (context, _) {
                   final profile = _authController.currentProfile;
                   final points = profile?.pointsBalance ?? 0;
                   final tier = profile?.tier ?? 'Bronze';
@@ -116,7 +268,10 @@ class RewardCatalogView extends StatelessWidget {
                           ],
                         ),
                         OutlinedButton(
-                          onPressed: () => Get.toNamed('/point-ledger'),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const PointLedgerView()),
+                          ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.paper,
                             side: BorderSide(color: AppColors.paper.withValues(alpha: 0.4)),
@@ -127,7 +282,8 @@ class RewardCatalogView extends StatelessWidget {
                       ],
                     ),
                   );
-                }),
+                },
+                ),
                 const SizedBox(height: 24),
 
                 Text(
@@ -142,27 +298,29 @@ class RewardCatalogView extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // Daftar Reward
-                Obx(() {
-                  if (_loyaltyController.isLoading.value) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: CircularProgressIndicator(color: AppColors.ink),
-                      ),
-                    );
-                  }
-
-                  final rewards = _loyaltyController.rewards;
-                  final currentPoints = _authController.currentProfile?.pointsBalance ?? 0;
-
-                  return Column(
-                    children: rewards.map((reward) {
-                      return _buildRewardCard(
-                        reward: reward,
-                        userPoints: currentPoints,
+                ListenableBuilder(
+                  listenable: Listenable.merge([_loyaltyController, _authController]),
+                  builder: (context, _) {
+                    if (_loyaltyController.isLoading) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: CircularProgressIndicator(color: AppColors.ink),
+                        ),
                       );
-                    }).toList(),
-                  );
+                    }
+
+                    final rewards = _loyaltyController.rewards;
+                    final currentPoints = _authController.currentProfile?.pointsBalance ?? 0;
+
+                    return Column(
+                      children: rewards.map((reward) {
+                        return _buildRewardCard(
+                          reward: reward,
+                          userPoints: currentPoints,
+                        );
+                      }).toList(),
+                    );
                 }),
               ],
             ),
@@ -288,7 +446,7 @@ class RewardCatalogView extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: canRedeem ? () => _loyaltyController.redeemReward(reward) : null,
+                onPressed: canRedeem ? () => _handleRedeemReward(reward) : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: canRedeem ? AppColors.ink : AppColors.hairline,
                   foregroundColor: canRedeem ? AppColors.paper : AppColors.inkSoft,

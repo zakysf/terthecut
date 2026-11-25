@@ -1,15 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
 import '../../controllers/branch_controller.dart';
+import 'branch_detail_view.dart';
 
-class BranchListView extends StatelessWidget {
+class BranchListView extends StatefulWidget {
   final bool showBackButton;
-  BranchListView({super.key, this.showBackButton = true});
+  const BranchListView({super.key, this.showBackButton = true});
 
-  final BranchController _controller = Get.put(BranchController());
+  @override
+  State<BranchListView> createState() => _BranchListViewState();
+}
+
+class _BranchListViewState extends State<BranchListView> {
+  final BranchController _controller = BranchController();
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.retrieveBranches();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,11 +36,11 @@ class BranchListView extends StatelessWidget {
       backgroundColor: AppColors.paper,
       appBar: AppBar(
         title: const Text('CABANG TER THE CUT'),
-        automaticallyImplyLeading: showBackButton,
-        leading: showBackButton
+        automaticallyImplyLeading: widget.showBackButton,
+        leading: widget.showBackButton
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => Get.back(),
+                onPressed: () => Navigator.pop(context),
               )
             : null,
       ),
@@ -33,7 +52,10 @@ class BranchListView extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: TextField(
                 controller: _searchController,
-                onChanged: (val) => _controller.searchBranches(val),
+                onChanged: (val) {
+                  setState(() {});
+                  _controller.searchBranches(val);
+                },
                 decoration: InputDecoration(
                   hintText: 'Cari nama jalan atau cabang...',
                   prefixIcon: const Icon(Icons.search, color: AppColors.inkSoft, size: 20),
@@ -42,6 +64,7 @@ class BranchListView extends StatelessWidget {
                           icon: const Icon(Icons.clear, size: 18),
                           onPressed: () {
                             _searchController.clear();
+                            setState(() {});
                             _controller.searchBranches('');
                           },
                         )
@@ -52,40 +75,47 @@ class BranchListView extends StatelessWidget {
 
             // Daftar 11 Cabang
             Expanded(
-              child: Obx(() {
-                if (_controller.isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppColors.ink),
-                  );
-                }
+              child: ListenableBuilder(
+                listenable: _controller,
+                builder: (context, _) {
+                  if (_controller.isLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: AppColors.ink),
+                    );
+                  }
 
-                if (_controller.branches.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.location_off_outlined, size: 48, color: AppColors.inkSoft),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Cabang tidak ditemukan',
-                          style: GoogleFonts.playfairDisplay(fontSize: 18, color: AppColors.ink),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                  if (_controller.branches.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.location_off_outlined, size: 48, color: AppColors.inkSoft),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Cabang tidak ditemukan',
+                            style: GoogleFonts.playfairDisplay(fontSize: 18, color: AppColors.ink),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  itemCount: _controller.branches.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final branch = _controller.branches[index];
-                    return Card(
-                      child: InkWell(
-                        onTap: () {
-                          Get.toNamed('/branch-detail', arguments: branch);
-                        },
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    itemCount: _controller.branches.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final branch = _controller.branches[index];
+                      return Card(
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BranchDetailView(branch: branch),
+                              ),
+                            );
+                          },
                         borderRadius: BorderRadius.circular(4),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -184,7 +214,8 @@ class BranchListView extends StatelessWidget {
                     );
                   },
                 );
-              }),
+              },
+            ),
             ),
           ],
         ),

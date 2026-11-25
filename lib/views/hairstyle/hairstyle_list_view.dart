@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme.dart';
 import '../../controllers/hairstyle_controller.dart';
 
-class HairstyleListView extends StatelessWidget {
-  HairstyleListView({super.key});
+class HairstyleListView extends StatefulWidget {
+  const HairstyleListView({super.key});
 
-  final HairstyleController _controller = Get.put(HairstyleController());
+  @override
+  State<HairstyleListView> createState() => _HairstyleListViewState();
+}
+
+class _HairstyleListViewState extends State<HairstyleListView> {
+  final HairstyleController _controller = HairstyleController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.retrieveHairstyles();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,23 +29,25 @@ class HairstyleListView extends StatelessWidget {
         title: const Text('INSPIRASI GAYA RAMBUT'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SafeArea(
-        child: Obx(() {
-          if (_controller.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.ink),
-            );
-          }
+        child: ListenableBuilder(
+          listenable: _controller,
+          builder: (context, _) {
+            if (_controller.isLoading) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.ink),
+              );
+            }
 
-          final hairstyles = _controller.hairstyles;
-          if (hairstyles.isEmpty) {
-            return const Center(child: Text('Katalog gaya rambut kosong.'));
-          }
+            final hairstyles = _controller.hairstyles;
+            if (hairstyles.isEmpty) {
+              return const Center(child: Text('Katalog gaya rambut kosong.'));
+            }
 
-          return GridView.builder(
+            return GridView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
@@ -142,7 +156,8 @@ class HairstyleListView extends StatelessWidget {
               );
             },
           );
-        }),
+        },
+        ),
       ),
     );
   }
