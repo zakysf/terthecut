@@ -4,38 +4,8 @@ import '../models/promotion.dart';
 
 /// Layanan Pengelolaan Promo & Segmen (US-16, US-17)
 class PromotionService {
-  static final List<Promotion> _mockPromotions = [
-    Promotion(
-      id: 'promo-01',
-      title: 'Diskon Akhir Pekan 20%',
-      description: 'Potongan 20% untuk semua layanan paket Gentlemen Cut & Grooming di seluruh 11 cabang.',
-      discountPercent: 20,
-      targetTier: 'all',
-      startDate: DateTime.now().subtract(const Duration(days: 2)),
-      endDate: DateTime.now().add(const Duration(days: 14)),
-      isActive: true,
-    ),
-    Promotion(
-      id: 'promo-02',
-      title: 'Apresiasi Member Gold 25%',
-      description: 'Khusus member Gold: Nikmati diskon istimewa 25% untuk Hair Spa Treatment.',
-      discountPercent: 25,
-      targetTier: 'gold',
-      startDate: DateTime.now().subtract(const Duration(days: 1)),
-      endDate: DateTime.now().add(const Duration(days: 20)),
-      isActive: true,
-    ),
-    Promotion(
-      id: 'promo-03',
-      title: 'Privilege Platinum 30%',
-      description: 'Penawaran eksklusif kasta tertinggi Platinum: Diskon 30% dan bebas antrean reservasi.',
-      discountPercent: 30,
-      targetTier: 'platinum',
-      startDate: DateTime.now(),
-      endDate: DateTime.now().add(const Duration(days: 30)),
-      isActive: true,
-    ),
-  ];
+  // Cache in-memory untuk runtime fallback saat luring / offline
+  static final List<Promotion> _inMemoryPromotions = [];
 
   /// Mengambil promo aktif yang sesuai dengan tier pelanggan (US-16)
   Future<List<Promotion>> getActivePromotions({String? userTier}) async {
@@ -54,7 +24,7 @@ class PromotionService {
             .where((p) => p.isEligibleForTier(userTier))
             .toList();
 
-        if (list.isNotEmpty) return list;
+        return list;
       } catch (e) {
         if (kDebugMode) {
           print('Supabase promos fetch error, using local fallback: $e');
@@ -62,7 +32,7 @@ class PromotionService {
       }
     }
 
-    return _mockPromotions.where((p) => p.isActive && p.isEligibleForTier(userTier)).toList();
+    return _inMemoryPromotions.where((p) => p.isActive && p.isEligibleForTier(userTier)).toList();
   }
 
   /// Mengambil seluruh promo untuk admin (US-17)
@@ -80,15 +50,15 @@ class PromotionService {
             .map((item) => Promotion.fromJson(item as Map<String, dynamic>))
             .toList();
 
-        if (list.isNotEmpty) return list;
+        return list;
       } catch (e) {
         if (kDebugMode) {
-          print('Supabase all promos error, fallback to mock: $e');
+          print('Supabase all promos error, fallback: $e');
         }
       }
     }
 
-    return List.from(_mockPromotions);
+    return List.from(_inMemoryPromotions);
   }
 
   /// Membuat promo baru oleh admin (US-17)
@@ -115,7 +85,7 @@ class PromotionService {
     if (client != null && SupabaseConfig.isConfigured) {
       try {
         await client.from('promos').insert(promo.toJson());
-        _mockPromotions.insert(0, promo);
+        _inMemoryPromotions.insert(0, promo);
         return promo;
       } catch (e) {
         if (kDebugMode) {
@@ -124,7 +94,7 @@ class PromotionService {
       }
     }
 
-    _mockPromotions.insert(0, promo);
+    _inMemoryPromotions.insert(0, promo);
     return promo;
   }
 
@@ -136,14 +106,14 @@ class PromotionService {
         await client.from('promos').update(promo.toJson()).eq('id', promo.id);
       } catch (e) {
         if (kDebugMode) {
-          print('Supabase promo update error, fallback to mock: $e');
+          print('Supabase promo update error, fallback: $e');
         }
       }
     }
 
-    final index = _mockPromotions.indexWhere((p) => p.id == promo.id);
+    final index = _inMemoryPromotions.indexWhere((p) => p.id == promo.id);
     if (index != -1) {
-      _mockPromotions[index] = promo;
+      _inMemoryPromotions[index] = promo;
       return true;
     }
     return true;
@@ -157,12 +127,12 @@ class PromotionService {
         await client.from('promos').delete().eq('id', promoId);
       } catch (e) {
         if (kDebugMode) {
-          print('Supabase promo delete error, fallback to mock: $e');
+          print('Supabase promo delete error, fallback: $e');
         }
       }
     }
 
-    _mockPromotions.removeWhere((p) => p.id == promoId);
+    _inMemoryPromotions.removeWhere((p) => p.id == promoId);
     return true;
   }
 }

@@ -28,8 +28,8 @@ class TimeSlot {
 }
 
 class BookingService {
-  // In-memory cache & fallback storage untuk demo luring / sinkronisasi instan
-  static final List<Booking> _mockBookings = [];
+  // In-memory cache & fallback storage untuk demo luring / offline
+  static final List<Booking> _inMemoryBookings = [];
 
   static bool _isUuid(String? str) {
     if (str == null) return false;
@@ -64,14 +64,13 @@ class BookingService {
       }
     }
 
-    // Merge dengan mock bookings agar pemesanan pelanggan selalu muncul
+    // Merge dengan in-memory bookings agar pemesanan pelanggan selalu muncul
     final Map<String, Booking> merged = {};
-    for (final b in _mockBookings) {
+    for (final b in _inMemoryBookings) {
       final matchesId = b.customerId == customerId || (resolvedId != null && b.customerId == resolvedId);
       final matchesPhone = (customerPhone != null && customerPhone.isNotEmpty && b.customerPhone == customerPhone);
-      final isGeneric = customerId == 'demo-user-1' || b.customerId.startsWith('mock-');
 
-      if (matchesId || matchesPhone || isGeneric) {
+      if (matchesId || matchesPhone) {
         merged[b.code] = b;
       }
     }
@@ -109,7 +108,7 @@ class BookingService {
     }
 
     final Map<String, Booking> merged = {};
-    final localMatches = _mockBookings.where((b) {
+    final localMatches = _inMemoryBookings.where((b) {
       final matchesBranch = b.branchId == branchId;
       final isActive = b.status == 'confirmed' || b.status == 'arrived';
       final isSameDate = b.startsAt.year == date.year &&
@@ -433,7 +432,7 @@ class BookingService {
           customerName: customerName,
           customerPhone: customerPhone,
         );
-        _mockBookings.insert(0, created);
+        _inMemoryBookings.insert(0, created);
         return created;
       } catch (e) {
         final errorMsg = e.toString().toLowerCase();
@@ -443,13 +442,13 @@ class BookingService {
             errorMsg.contains('23p01')) {
           throw Exception('Jadwal ini baru saja diambil orang lain. Silakan pilih jam lain.');
         }
-        // Fallback simpan ke mock jika error non-bentrok (misal RLS aktif di Supabase)
+        // Fallback simpan ke in-memory jika error non-bentrok
         debugPrint('Catatan simpan Supabase (akan aktif di cloud setelah RLS dibuka): $e');
       }
     }
 
-    // Simpan ke mock
-    _mockBookings.insert(0, newBooking);
+    // Simpan ke in-memory
+    _inMemoryBookings.insert(0, newBooking);
     return newBooking;
   }
 
@@ -472,14 +471,14 @@ class BookingService {
           'cancelled_at': DateTime.now().toIso8601String(),
         }).eq('id', booking.id);
       } catch (e) {
-        // Fallback update mock
+        // Fallback update in-memory
       }
     }
 
-    // Update in mock cache
-    final index = _mockBookings.indexWhere((b) => b.id == booking.id || b.code == booking.code);
+    // Update in in-memory cache
+    final index = _inMemoryBookings.indexWhere((b) => b.id == booking.id || b.code == booking.code);
     if (index != -1) {
-      _mockBookings[index] = _mockBookings[index].copyWith(
+      _inMemoryBookings[index] = _inMemoryBookings[index].copyWith(
         status: 'cancelled',
         cancelReason: reason,
         cancelledAt: DateTime.now(),
@@ -516,12 +515,12 @@ class BookingService {
         final data = await query.order('starts_at', ascending: true);
         remoteList.addAll((data as List).map((e) => Booking.fromJson(e)).toList());
       } catch (e) {
-        // Fallback ke mock
+        // Fallback ke in-memory
       }
     }
 
     final Map<String, Booking> merged = {};
-    final localMatches = _mockBookings.where((b) {
+    final localMatches = _inMemoryBookings.where((b) {
       final matchesBranch =
           (branchId == null || branchId.isEmpty || branchId == 'all') || b.branchId == branchId;
       final isSameDate = b.startsAt.year == targetDate.year &&
@@ -553,13 +552,13 @@ class BookingService {
           'arrived_at': now.toIso8601String(),
         }).eq('id', bookingId);
       } catch (e) {
-        // Fallback update mock
+        // Fallback update in-memory
       }
     }
 
-    final index = _mockBookings.indexWhere((b) => b.id == bookingId);
+    final index = _inMemoryBookings.indexWhere((b) => b.id == bookingId);
     if (index != -1) {
-      _mockBookings[index] = _mockBookings[index].copyWith(
+      _inMemoryBookings[index] = _inMemoryBookings[index].copyWith(
         status: 'arrived',
         arrivedAt: now,
       );
@@ -623,24 +622,24 @@ class BookingService {
           });
         }
       } catch (e) {
-        // Fallback proses mock
+        // Fallback proses in-memory
         debugPrint('Catatan complete Supabase: $e');
       }
     }
 
-    // Update mock
+    // Update in-memory
     AuthService.creditMockPoints(booking.customerId, booking.servicePoints);
     if (booking.customerPhone != null && booking.customerPhone!.isNotEmpty) {
       AuthService.creditMockPoints(booking.customerPhone!, booking.servicePoints);
     }
 
-    final index = _mockBookings.indexWhere((b) => b.id == booking.id || b.code == booking.code);
+    final index = _inMemoryBookings.indexWhere((b) => b.id == booking.id || b.code == booking.code);
     Booking updated = booking.copyWith(
       status: 'completed',
       completedAt: now,
     );
     if (index != -1) {
-      _mockBookings[index] = updated;
+      _inMemoryBookings[index] = updated;
     }
 
     return updated;

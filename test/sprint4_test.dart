@@ -149,7 +149,11 @@ void main() {
     // US-20: Pencarian Cepat Data Pelanggan oleh Kasir
     // ------------------------------------------------------------------------
     test('US-20: Cashier searches customer by phone query and receives matched profiles', () async {
-      // Mock profiles include Dimas (081234567890)
+      await authService.register(
+        name: 'Dimas Setiawan',
+        identifier: '081234567890',
+        password: 'password123',
+      );
       final results = await authService.searchCustomers('0812');
       expect(results, isNotEmpty);
       expect(results.every((p) => p.role == 'customer'), isTrue);

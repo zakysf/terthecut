@@ -2,26 +2,8 @@ import '../config/supabase_config.dart';
 import '../models/profile.dart';
 
 class AuthService {
-  // In-memory mock jika Supabase belum terhubung
-  static final List<Profile> _mockProfiles = [
-    Profile(
-      id: 'mock-admin-1',
-      role: 'admin',
-      phone: '081999888777',
-      name: 'Admin Utama Ter The Cut',
-      pointsBalance: 0,
-      lifetimePoints: 0,
-    ),
-    Profile(
-      id: 'mock-customer-1',
-      role: 'customer',
-      phone: '081234567890',
-      name: 'Bagas Pratama',
-      pointsBalance: 120,
-      lifetimePoints: 120,
-      lastVisitAt: DateTime.now().subtract(const Duration(days: 7)),
-    ),
-  ];
+  // In-memory cache jika Supabase belum terhubung / luring
+  static final List<Profile> _inMemoryProfiles = [];
 
   static Profile? _currentSessionProfile;
 
@@ -73,9 +55,9 @@ class AuthService {
         throw Exception(e.toString().replaceAll('Exception:', '').trim());
       }
     } else {
-      // Mock Fallback Mode
-      await Future.delayed(const Duration(milliseconds: 500));
-      final found = _mockProfiles.cast<Profile?>().firstWhere(
+      // Fallback Mode (luring / test)
+      await Future.delayed(const Duration(milliseconds: 50));
+      final found = _inMemoryProfiles.cast<Profile?>().firstWhere(
             (p) => p?.phone == phone,
             orElse: () => null,
           );
@@ -85,15 +67,7 @@ class AuthService {
         return found;
       }
 
-      final newMock = Profile(
-        id: 'mock-${DateTime.now().millisecondsSinceEpoch}',
-        role: 'customer',
-        phone: phone,
-        name: 'Pelanggan Ter The Cut',
-      );
-      _mockProfiles.add(newMock);
-      _currentSessionProfile = newMock;
-      return newMock;
+      throw Exception('Nomor telepon atau kata sandi tidak ditemukan.');
     }
   }
 
@@ -147,22 +121,22 @@ class AuthService {
         throw Exception(e.toString().replaceAll('Exception:', '').trim());
       }
     } else {
-      // Mock Fallback Mode
-      await Future.delayed(const Duration(milliseconds: 500));
-      final existing = _mockProfiles.any((p) => p.phone == phone);
+      // Fallback Mode (luring / test)
+      await Future.delayed(const Duration(milliseconds: 50));
+      final existing = _inMemoryProfiles.any((p) => p.phone == phone);
       if (existing) {
         throw Exception('Nomor telepon sudah terdaftar. Silakan langsung masuk.');
       }
 
       final profile = Profile(
-        id: 'mock-${DateTime.now().millisecondsSinceEpoch}',
+        id: 'user-${DateTime.now().millisecondsSinceEpoch}',
         role: 'customer',
         name: name.trim(),
         phone: phone,
         pointsBalance: 0,
         lifetimePoints: 0,
       );
-      _mockProfiles.add(profile);
+      _inMemoryProfiles.add(profile);
       _currentSessionProfile = profile;
       return profile;
     }
@@ -194,8 +168,8 @@ class AuthService {
       } catch (_) {}
     }
 
-    // Fallback Mock Profiles
-    return _mockProfiles.where((p) {
+    // Fallback In-Memory Profiles
+    return _inMemoryProfiles.where((p) {
       if (p.role != 'customer') return false;
       final nameMatch = (p.name ?? '').toLowerCase().contains(cleanQuery);
       final phoneMatch = (p.phone ?? '').contains(cleanQuery);
@@ -203,7 +177,7 @@ class AuthService {
     }).toList();
   }
 
-  /// Memperbarui profil terbaru dari database Supabase atau mock
+  /// Memperbarui profil terbaru dari database Supabase atau in-memory
   Future<Profile?> getProfile(String idOrPhone) async {
     final client = SupabaseConfig.client;
     if (client != null && SupabaseConfig.isConfigured) {
@@ -223,21 +197,21 @@ class AuthService {
       } catch (_) {}
     }
 
-    return _mockProfiles.cast<Profile?>().firstWhere(
+    return _inMemoryProfiles.cast<Profile?>().firstWhere(
           (p) => p?.id == idOrPhone || p?.phone == normalizePhone(idOrPhone),
           orElse: () => _currentSessionProfile,
         );
   }
 
-  /// Menambahkan poin di cache memori mock agar sinkron luring
+  /// Menambahkan poin di cache memori agar sinkron luring
   static void creditMockPoints(String customerIdOrPhone, int points) {
     final normPhone = normalizePhone(customerIdOrPhone);
-    final index = _mockProfiles.indexWhere(
+    final index = _inMemoryProfiles.indexWhere(
       (p) => p.id == customerIdOrPhone || p.phone == normPhone,
     );
     if (index != -1) {
-      final curr = _mockProfiles[index];
-      _mockProfiles[index] = curr.copyWith(
+      final curr = _inMemoryProfiles[index];
+      _inMemoryProfiles[index] = curr.copyWith(
         pointsBalance: curr.pointsBalance + points,
         lifetimePoints: curr.lifetimePoints + points,
         lastVisitAt: DateTime.now(),

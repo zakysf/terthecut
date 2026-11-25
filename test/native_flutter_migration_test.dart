@@ -39,23 +39,29 @@ void main() {
       final initial = await auth.checkSavedSession();
       expect(initial, isNull);
 
-      // Login sebagai customer mock
+      // Register customer untuk pengetesan offline
+      await auth.register(
+        name: 'Bagas Pratama',
+        identifier: '081234567890',
+        password: 'password123',
+      );
+
+      // Login sebagai customer
       final ok = await auth.login(
         identifier: '081234567890',
         password: 'password123',
       );
       expect(ok, isTrue);
       expect(auth.isLoggedIn, isTrue);
-      expect(auth.currentProfile?.id, 'mock-customer-1');
+      expect(auth.currentProfile?.phone, '081234567890');
 
       // Cek data SharedPreferences tersimpan (pola Modul 6)
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool('loginData'), isTrue);
-      expect(prefs.getString('loggedInUserId'), 'mock-customer-1');
+      expect(prefs.getString('loggedInUserId'), isNotNull);
 
       // Cek checkSavedSession memulihkan profil tersimpan
       final restored = await auth.checkSavedSession();
-      expect(restored?.id, 'mock-customer-1');
       expect(restored?.phone, '081234567890');
 
       // Logout menghapus sesi SharedPreferences
@@ -68,6 +74,12 @@ void main() {
 
     test('AdminController debounces customer search with native Timer (300ms)', () async {
       final admin = AdminController();
+      final auth = AuthController();
+      await auth.register(
+        name: 'Bagas Pratama',
+        identifier: '081234567890',
+        password: 'password123',
+      );
       admin.onCustomerSearchChanged('0812');
 
       // Sebelum 300ms, debounce belum menjalankan pencarian akhir

@@ -35,8 +35,8 @@ class LoyaltyService {
     ),
   ];
 
-  static final List<RewardRedemption> _mockVouchers = [];
-  static final List<PointLedgerEntry> _mockLedger = [];
+  static final List<RewardRedemption> _inMemoryVouchers = [];
+  static final List<PointLedgerEntry> _inMemoryLedger = [];
 
   /// Mengambil katalog Reward yang tersedia
   Future<List<Reward>> fetchRewards() async {
@@ -136,9 +136,9 @@ class LoyaltyService {
       }
     }
 
-    // Simpan ke mock
-    _mockVouchers.insert(0, redemption);
-    _mockLedger.insert(0, ledgerEntry);
+    // Simpan ke in-memory cache
+    _inMemoryVouchers.insert(0, redemption);
+    _inMemoryLedger.insert(0, ledgerEntry);
 
     return redemption;
   }
@@ -163,7 +163,7 @@ class LoyaltyService {
     }
 
     final Map<String, RewardRedemption> merged = {};
-    for (final v in _mockVouchers.where((v) => v.customerId == customerId || customerId == 'demo-user-1' || v.customerId.startsWith('mock-'))) {
+    for (final v in _inMemoryVouchers.where((v) => v.customerId == customerId)) {
       merged[v.voucherCode] = v;
     }
     for (final v in remoteList) {
@@ -191,12 +191,12 @@ class LoyaltyService {
 
         remoteList.addAll((data as List).map((e) => PointLedgerEntry.fromJson(e)).toList());
       } catch (e) {
-        // Fallback ke mock
+        // Fallback ke luring
       }
     }
 
     final Map<String, PointLedgerEntry> merged = {};
-    for (final l in _mockLedger.where((l) => l.customerId == customerId || customerId == 'demo-user-1' || l.customerId.startsWith('mock-'))) {
+    for (final l in _inMemoryLedger.where((l) => l.customerId == customerId)) {
       merged[l.id] = l;
     }
     for (final l in remoteList) {
@@ -220,7 +220,7 @@ class LoyaltyService {
       note: serviceName,
       createdAt: now,
     );
-    _mockLedger.insert(0, entry);
+    _inMemoryLedger.insert(0, entry);
   }
 
   /// Menandai voucher telah digunakan oleh pelanggan (US-13)
@@ -243,9 +243,9 @@ class LoyaltyService {
       }
     }
 
-    final index = _mockVouchers.indexWhere((v) => v.voucherCode.toUpperCase() == cleanCode);
+    final index = _inMemoryVouchers.indexWhere((v) => v.voucherCode.toUpperCase() == cleanCode);
     if (index != -1) {
-      _mockVouchers[index] = _mockVouchers[index].copyWith(status: 'used');
+      _inMemoryVouchers[index] = _inMemoryVouchers[index].copyWith(status: 'used');
     }
     return true;
   }

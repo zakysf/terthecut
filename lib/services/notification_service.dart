@@ -21,38 +21,7 @@ class NotificationService {
   bool _isPluginInitialized = false;
   int _nextNotificationId = 100;
 
-  static final List<InAppNotification> _mockNotifications = [
-    InAppNotification(
-      id: 'notif-01',
-      userId: 'mock-customer-1',
-      title: 'Selamat Bergabung di Ter The Cut!',
-      message:
-          'Akun membership Anda telah aktif. Kumpulkan poin di setiap kunjungan potong rambut untuk ditukar dengan reward eksklusif.',
-      type: 'general',
-      createdAt: DateTime.now().subtract(const Duration(days: 3)),
-      isRead: true,
-    ),
-    InAppNotification(
-      id: 'notif-02',
-      userId: 'mock-customer-1',
-      title: 'Reservasi Jadwal Berhasil',
-      message:
-          'Reservasi Anda di Cabang Seturan telah terkonfirmasi. Tunjukkan kode reservasi kepada kasir saat tiba.',
-      type: 'booking',
-      createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-      isRead: false,
-    ),
-    InAppNotification(
-      id: 'notif-03',
-      userId: 'mock-customer-1',
-      title: '+10 Poin Loyalitas Diterima',
-      message:
-          'Transaksi cukur rambut Anda telah selesai. Saldo poin Anda otomatis bertambah +10 poin.',
-      type: 'points',
-      createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-      isRead: false,
-    ),
-  ];
+  static final List<InAppNotification> _inMemoryNotifications = [];
 
   /// Inisialisasi Local Notification & timezone perangkat (Modul 7).
   Future<void> init() async {
@@ -197,9 +166,9 @@ class NotificationService {
       }
     }
 
-    // Fallback: ambil mock yang sesuai atau umum
-    final userNotifs = _mockNotifications
-        .where((n) => n.userId == userId || n.userId == 'mock-customer-1')
+    // Fallback: ambil data in-memory untuk user yang bersangkutan
+    final userNotifs = _inMemoryNotifications
+        .where((n) => n.userId == userId)
         .toList();
     userNotifs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return List.from(userNotifs);
@@ -215,11 +184,10 @@ class NotificationService {
       } catch (_) {}
     }
 
-    final found = _mockNotifications.firstWhere(
-      (n) => n.id == id,
-      orElse: () => _mockNotifications.first,
-    );
-    found.isRead = true;
+    final index = _inMemoryNotifications.indexWhere((n) => n.id == id);
+    if (index != -1) {
+      _inMemoryNotifications[index].isRead = true;
+    }
   }
 
   /// Menandai seluruh notifikasi user sebagai terbaca.
@@ -232,8 +200,8 @@ class NotificationService {
       } catch (_) {}
     }
 
-    for (final n in _mockNotifications) {
-      if (n.userId == userId || n.userId == 'mock-customer-1') {
+    for (final n in _inMemoryNotifications) {
+      if (n.userId == userId) {
         n.isRead = true;
       }
     }
@@ -263,7 +231,7 @@ class NotificationService {
       } catch (_) {}
     }
 
-    _mockNotifications.insert(0, notif);
+    _inMemoryNotifications.insert(0, notif);
     await showInstantNotification(title: title, body: message);
     return notif;
   }
