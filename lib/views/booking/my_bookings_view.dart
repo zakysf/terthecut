@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+
 import '../../config/theme.dart';
 import '../../controllers/booking_controller.dart';
 import '../../models/booking.dart';
@@ -60,7 +61,10 @@ class _MyBookingsViewState extends State<MyBookingsView> {
                   unselectedLabelColor: AppColors.inkSoft,
                   indicatorColor: AppColors.accent,
                   indicatorWeight: 3,
-                  labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+                  labelStyle: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
                   tabs: [
                     Tab(text: 'Akan Datang ($upcomingCount)'),
                     Tab(text: 'Riwayat Selesai ($historyCount)'),
@@ -75,7 +79,9 @@ class _MyBookingsViewState extends State<MyBookingsView> {
             listenable: _controller,
             builder: (context, _) {
               if (_controller.isLoadingBookings) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.ink));
+                return const Center(
+                  child: CircularProgressIndicator(color: AppColors.ink),
+                );
               }
 
               final upcoming = _controller.upcomingBookings;
@@ -88,25 +94,6 @@ class _MyBookingsViewState extends State<MyBookingsView> {
                 ],
               );
             },
-          ),
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () {
-            _controller.initWizard();
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const BookingWizardView()),
-            );
-          },
-          backgroundColor: AppColors.ink,
-          icon: const Icon(Icons.add, color: AppColors.paper),
-          label: Text(
-            'PESAN BARU',
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
-              color: AppColors.paper,
-            ),
           ),
         ),
       ),
@@ -132,7 +119,9 @@ class _MyBookingsViewState extends State<MyBookingsView> {
               ),
               const SizedBox(height: 16),
               Text(
-                isUpcoming ? 'Belum Ada Jadwal Aktif' : 'Belum Ada Riwayat Kunjungan',
+                isUpcoming
+                    ? 'Belum Ada Jadwal Aktif'
+                    : 'Belum Ada Riwayat Kunjungan',
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -145,27 +134,43 @@ class _MyBookingsViewState extends State<MyBookingsView> {
                     ? 'Pilih cabang dan kapster favorit Anda untuk melakukan reservasi potong rambut.'
                     : 'Riwayat layanan dan poin yang diperoleh akan tampil di sini setelah kunjungan selesai.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkSoft),
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppColors.inkSoft,
+                ),
               ),
               if (isUpcoming && _controller.historyBookings.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: AppColors.success.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.check_circle_outline, color: AppColors.success, size: 16),
+                      const Icon(
+                        Icons.check_circle_outline,
+                        color: AppColors.success,
+                        size: 16,
+                      ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
                           'Jadwal Anda telah selesai di tab "Riwayat Selesai".',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.success),
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.success,
+                          ),
                         ),
                       ),
                     ],
@@ -179,7 +184,9 @@ class _MyBookingsViewState extends State<MyBookingsView> {
                     _controller.initWizard();
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const BookingWizardView()),
+                      MaterialPageRoute(
+                        builder: (_) => const BookingWizardView(),
+                      ),
                     );
                   },
                   child: const Text('RESERVASI SEKARANG'),
@@ -205,7 +212,11 @@ class _MyBookingsViewState extends State<MyBookingsView> {
     );
   }
 
-  Widget _buildBookingCard(BuildContext context, Booking booking, bool isUpcoming) {
+  Widget _buildBookingCard(
+    BuildContext context,
+    Booking booking,
+    bool isUpcoming,
+  ) {
     Color statusColor;
     Color statusBgColor;
 
@@ -236,7 +247,9 @@ class _MyBookingsViewState extends State<MyBookingsView> {
       child: InkWell(
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => BookingDetailView(booking: booking)),
+          MaterialPageRoute(
+            builder: (_) => BookingDetailView(booking: booking),
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(18),
@@ -249,7 +262,11 @@ class _MyBookingsViewState extends State<MyBookingsView> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.confirmation_number_outlined, size: 16, color: AppColors.inkSoft),
+                      const Icon(
+                        Icons.confirmation_number_outlined,
+                        size: 16,
+                        color: AppColors.inkSoft,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         booking.code,
@@ -263,7 +280,10 @@ class _MyBookingsViewState extends State<MyBookingsView> {
                     ],
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: statusBgColor,
                       borderRadius: BorderRadius.circular(3),
@@ -294,12 +314,19 @@ class _MyBookingsViewState extends State<MyBookingsView> {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(Icons.store_outlined, size: 14, color: AppColors.accent),
+                  const Icon(
+                    Icons.store_outlined,
+                    size: 14,
+                    color: AppColors.accent,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       booking.branchName,
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -307,18 +334,29 @@ class _MyBookingsViewState extends State<MyBookingsView> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.person_outline, size: 14, color: AppColors.inkSoft),
+                  const Icon(
+                    Icons.person_outline,
+                    size: 14,
+                    color: AppColors.inkSoft,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     'Kapster: ${booking.barberName}${booking.barberPref == 'auto' ? ' (Auto-Assign)' : ''}',
-                    style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkSoft),
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppColors.inkSoft,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.access_time, size: 14, color: AppColors.inkSoft),
+                  const Icon(
+                    Icons.access_time,
+                    size: 14,
+                    color: AppColors.inkSoft,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     '${booking.formattedDate} • ${booking.formattedTimeRange}',
@@ -350,17 +388,25 @@ class _MyBookingsViewState extends State<MyBookingsView> {
                       ),
                       Text(
                         '+${booking.servicePoints} Poin Loyalitas',
-                        style: GoogleFonts.inter(fontSize: 10, color: AppColors.gold),
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          color: AppColors.gold,
+                        ),
                       ),
                     ],
                   ),
                   ElevatedButton(
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => BookingDetailView(booking: booking)),
+                      MaterialPageRoute(
+                        builder: (_) => BookingDetailView(booking: booking),
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                     ),
                     child: const Text('TIKET', style: TextStyle(fontSize: 10)),
                   ),
@@ -373,4 +419,3 @@ class _MyBookingsViewState extends State<MyBookingsView> {
     );
   }
 }
-

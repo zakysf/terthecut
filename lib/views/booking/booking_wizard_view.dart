@@ -445,6 +445,45 @@ class _BookingWizardViewState extends State<BookingWizardView> {
                             ],
                           ),
                           const SizedBox(height: 8),
+
+                          // Indikator Jarak LBS (Modul 7) jika tersedia
+                          if (_branchController.getFormattedDistanceFor(b.id) != null) ...[
+                            Row(
+                              children: [
+                                Icon(
+                                  _branchController.isSortedByDistance &&
+                                          _branchController.nearestBranch?.id == b.id
+                                      ? Icons.stars
+                                      : Icons.near_me,
+                                  size: 13,
+                                  color: _branchController.isSortedByDistance &&
+                                          _branchController.nearestBranch?.id == b.id
+                                      ? AppColors.accent
+                                      : AppColors.inkSoft,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _branchController.isSortedByDistance &&
+                                          _branchController.nearestBranch?.id == b.id
+                                      ? 'TERDEKAT • ${_branchController.getFormattedDistanceFor(b.id)}'
+                                      : _branchController.getFormattedDistanceFor(b.id)!,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: _branchController.isSortedByDistance &&
+                                            _branchController.nearestBranch?.id == b.id
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                    color: _branchController.isSortedByDistance &&
+                                            _branchController.nearestBranch?.id == b.id
+                                        ? AppColors.accent
+                                        : AppColors.inkSoft,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [

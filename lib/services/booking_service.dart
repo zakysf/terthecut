@@ -4,6 +4,7 @@ import '../config/supabase_config.dart';
 import '../models/booking.dart';
 import '../models/barber.dart';
 import 'auth_service.dart';
+import 'local_database_helper.dart';
 
 class TimeSlot {
   final int hour; // 10..21
@@ -64,8 +65,20 @@ class BookingService {
       }
     }
 
-    // Merge dengan in-memory bookings agar pemesanan pelanggan selalu muncul
+    // 1. Ambil data lokal dari SQLite (Offline-First)
+    List<Booking> localList = [];
+    try {
+      localList = await LocalDatabaseHelper.instance.getBookingsForCustomer(
+        customerId,
+        customerPhone: customerPhone,
+      );
+    } catch (_) {}
+
+    // Merge dengan in-memory bookings dan data lokal SQLite
     final Map<String, Booking> merged = {};
+    for (final b in localList) {
+      merged[b.code] = b;
+    }
     for (final b in _inMemoryBookings) {
       final matchesId = b.customerId == customerId || (resolvedId != null && b.customerId == resolvedId);
       final matchesPhone = (customerPhone != null && customerPhone.isNotEmpty && b.customerPhone == customerPhone);
@@ -76,6 +89,10 @@ class BookingService {
     }
     for (final b in remoteList) {
       merged[b.code] = b;
+      // Simpan data remote ke SQLite sebagai background cache lokal
+      try {
+        LocalDatabaseHelper.instance.upsertBooking(b, syncStatus: 'synced');
+      } catch (_) {}
     }
 
     final results = merged.values.toList()
@@ -361,6 +378,11 @@ class BookingService {
       createdAt: DateTime.now(),
     );
 
+    // Simpan ke database lokal SQLite (Offline-First)
+    try {
+      await LocalDatabaseHelper.instance.upsertBooking(newBooking, syncStatus: 'pending');
+    } catch (_) {}
+
     // Simpan ke Supabase jika terhubung
     final client = SupabaseConfig.client;
     if (client != null && SupabaseConfig.isConfigured) {
@@ -433,6 +455,10 @@ class BookingService {
           customerPhone: customerPhone,
         );
         _inMemoryBookings.insert(0, created);
+        // Tandai status sync SQLite menjadi synced
+        try {
+          await LocalDatabaseHelper.instance.upsertBooking(created, syncStatus: 'synced');
+        } catch (_) {}
         return created;
       } catch (e) {
         final errorMsg = e.toString().toLowerCase();
@@ -484,6 +510,16 @@ class BookingService {
         cancelledAt: DateTime.now(),
       );
     }
+
+    // Update di database lokal SQLite
+    try {
+      await LocalDatabaseHelper.instance.updateBookingStatus(
+        booking.id,
+        'cancelled',
+        cancelReason: reason,
+        cancelledAt: DateTime.now(),
+      );
+    } catch (_) {}
 
     return true;
   }
@@ -563,6 +599,14 @@ class BookingService {
         arrivedAt: now,
       );
     }
+    // Update di database lokal SQLite
+    try {
+      await LocalDatabaseHelper.instance.updateBookingStatus(
+        bookingId,
+        'arrived',
+        arrivedAt: now,
+      );
+    } catch (_) {}
     return true;
   }
 
@@ -641,6 +685,15 @@ class BookingService {
     if (index != -1) {
       _inMemoryBookings[index] = updated;
     }
+
+    // Update di database lokal SQLite
+    try {
+      await LocalDatabaseHelper.instance.updateBookingStatus(
+        booking.id,
+        'completed',
+        completedAt: now,
+      );
+    } catch (_) {}
 
     return updated;
   }
